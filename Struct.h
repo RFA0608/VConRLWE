@@ -316,8 +316,7 @@ void factorize_recursive(mpz_t n, std::vector<mpz_t*>& factors)
 
     if (mpz_cmp_ui(factor, 1) == 0 || mpz_cmp(factor, n) == 0) 
     {
-        // 단순히 2부터 조금 돌려봄 (Backup Plan)
-        // 실제로는 여기서 멈추면 안되지만 코드 간결화를 위해 생략
+        
     } 
     else 
     {
