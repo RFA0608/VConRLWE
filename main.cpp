@@ -26,9 +26,6 @@ int main()
     parms.set_plain_modulus(PlainModulus::Batching(poly_modulus_degree, plain_modulus));
     SEALContext context(parms);
 
-    mpz_t plain_mod;
-    mpz_init_set_str(plain_mod, to_string(parms.plain_modulus().value()).c_str(), 10);
-
     // set batch encoder 
     BatchEncoder batch_encoder(context);
     size_t slot_count = batch_encoder.slot_count();
@@ -50,34 +47,35 @@ int main()
     poly* p2 = new poly(poly_degree);
     poly* p3 = new poly(poly_degree);
 
-    poly_set(packed_data, p1);
+    mpz_class plain_mod(to_string(parms.plain_modulus().value()));
+    mpz_class g_p;
+    prime_handler::find_primitive_root(plain_mod, g_p);
 
-    mpz_t* cipher_mod = find_ntt_prime(p1->size, 110);
-    mpz_out_str(stdout, 10, *cipher_mod);
-    cout << endl;
-    cout <<"is prime : " << is_prime(*cipher_mod) << endl;
+    mpz_class cipher_mod;
+    prime_handler::find_ntt_prime(poly_degree, 210, cipher_mod);
+    mpz_class g_c;
+    prime_handler::find_primitive_root(cipher_mod, g_c);
 
-    cipher* c = new cipher(p1->size, plain_mod, *cipher_mod);
-    poly* sk = secret_key(p1->size);
+    poly_handler::plain_2_poly(packed_data, p1);
+    poly_handler::plain_2_poly(packed_data, p2);
 
-    encrypt(p1, sk, c);
-    decrypt(c, sk, p2);
-    poly_get(p2, result_data);
-    // poly_set(packed_data, p2);
+    cipher* c1 = new cipher(p1->ring_dim, plain_mod, cipher_mod, g_p, g_c);
+    cipher* c2 = new cipher(p2->ring_dim, plain_mod, cipher_mod, g_p, g_c);
+    cipher* c3 = new cipher(p2->ring_dim, plain_mod, cipher_mod, g_p, g_c);
+    cipher* c4 = new cipher(p2->ring_dim, plain_mod, cipher_mod, g_p, g_c);
 
-    // // poly_add(p1, p2, p3);
-    // poly_mul(p1, p2, p3);
-    // poly_mod(p3, mod, p3);
+    poly* sk = new poly(poly_degree);
+    random_handler::secret_key(sk);
 
-    // mpz_t rop;
-    // mpz_init(rop);
-    // find_primitive_root(mod, rop);
-    // int r = is_prime(mod);
+    crypto_handler::encrypt(p1, sk, c1);
+    crypto_handler::encrypt(p2, sk, c2);
+    crypto_handler::eval_mul(c1, c2, c3);
+    crypto_handler::eval_add(c3, c3, c4);
 
+    crypto_handler::decrypt(c4, sk, p3);
 
-    // poly_mul_ntt(p1, p2, mod, rop, p3);
-    // poly_get(p3, result_data);
-
+    poly_handler::poly_2_plain(p3, result_data);
+    
     vector<int64_t> repod_matrix(slot_count, 0LL);
     batch_encoder.decode(result_data, repod_matrix);
 
@@ -89,11 +87,5 @@ int main()
     delete p1;
     delete p2;
     delete p3;
-    delete c;
-    delete sk;
-
-    mpz_clears(plain_mod, *cipher_mod, NULL);
-    delete cipher_mod;
-
     return 0;
 }

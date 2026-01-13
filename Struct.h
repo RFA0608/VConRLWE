@@ -1,6 +1,7 @@
 #include <gmpxx.h>
 #include <vector>
 #include <iostream>
+#include <algorithm>
 #include <cmath>
 
 #include "seal/seal.h"
@@ -8,552 +9,502 @@
 class poly
 {
     public:
-        int size;
-        mpz_t* coeff;
+        std::vector<mpz_class> coeff;
+        int ring_dim;
 
-        poly(int size)
+    poly(int ring_dim)
+    {
+        this->coeff.resize(ring_dim);
+        this->ring_dim = ring_dim;
+    }
+
+    ~poly()
+    {
+        this->coeff.clear();
+    }
+
+    poly* clone()
+    {
+        poly* clone = new poly(this->ring_dim);
+        clone->coeff = this->coeff;
+
+        return clone;
+    }
+};
+
+class poly_handler
+{
+    public:
+        static int plain_2_poly(seal::Plaintext op, poly* res)
         {
-            this->size = size;
+            if((int)op.coeff_count() != res->ring_dim)
+            {
+                return -1;
+            }
+            else
+            {
+                for(int i = 0; i < res->ring_dim; i++)
+                {
+                    res->coeff[i] = op[i];
+                }
+
+                return 0;
+            }
+        }
+
+        static int poly_2_plain(poly* op, seal::Plaintext& res)
+        {
+            if(op->ring_dim != (int)res.coeff_count())
+            {
+                return -1;
+            }
+            else
+            {
+                for(int i = 0; i < (int)res.coeff_count(); i++)
+                {
+                    res[i] = op->coeff[i].get_ui();
+                }
+
+                return 0;
+            }
+        }
+
+        static int poly_neg(poly* op, poly* res)
+        {
+            if(op->ring_dim != res->ring_dim)
+            {
+                return -1;
+            }
+            else
+            {
+                for(int i = 0; i < res->ring_dim; i++)
+                {
+                    res->coeff[i] = -op->coeff[i];
+                }
+
+                return 0;
+            }
+        }
+
+        static int poly_add(poly* op1, poly* op2, poly* res)
+        {
+            if((op1->ring_dim != res->ring_dim) || (op2->ring_dim != res->ring_dim))
+            {
+                return -1;
+            }
+            else
+            {
+                for(int i = 0; i < res->ring_dim; i++)
+                {
+                    res->coeff[i] = op1->coeff[i] + op2->coeff[i];
+                }
+
+                return 0;
+            }
+        }
+
+        static int poly_scal_mul(mpz_class c, poly* op, poly* res)
+        {
+            if((op->ring_dim != res->ring_dim))
+            {
+                return -1;
+            }
+            else
+            {
+                for(int i = 0; i < res->ring_dim; i++)
+                {
+                    res->coeff[i] = c * op->coeff[i];
+                }
+
+                return 0;
+            }
+        }
+
+        static int poly_mul(poly* op1, poly* op2, poly* res)
+        {
+            if((op1->ring_dim != res->ring_dim) || (op2->ring_dim != res->ring_dim))
+            {
+                return -1;
+            }
+            else
+            {
+                poly* longres = new poly(op1->ring_dim + op2->ring_dim);
+                mpz_class temp;
+
+                for(int i = 0; i < res->ring_dim; i++)
+                {
+                    for(int j = 0; j < res->ring_dim; j++)
+                    {
+                        temp = op1->coeff[i] * op2->coeff[j];
+                        longres->coeff[i+j] = longres->coeff[i+j] + temp;
+                    }
+                }
+
+                for(int i = 0; i < res->ring_dim; i++)
+                {
+                    res->coeff[i] = longres->coeff[i];
+                }
+
+                for(int i = res->ring_dim; i < 2 * res->ring_dim; i++)
+                {
+                    res->coeff[i - res->ring_dim] = res->coeff[i - res->ring_dim] - longres->coeff[i];
+                }
+
+                delete longres;
+                return 0;
+            }
+        }
+
+        static int poly_mod(poly* op, const mpz_class& mod, poly* res)
+        {
+            if(op->ring_dim != res->ring_dim)
+            {
+                return -1;
+            }
+            else
+            {
+                for(int i = 0; i < res->ring_dim; i++)
+                {
+                    res->coeff[i] = ((op->coeff[i]) % mod + mod) % mod;
+                }
+
+                return 0;
+            }
+        }
+
+        static int poly_bias_mod(poly* op, const mpz_class& mod, poly* res)
+        {
+            if(op->ring_dim != res->ring_dim)
+            {
+                return -1;
+            }
+            else
+            {
+                mpz_class half_mod = mod / 2;
+
+                for(int i = 0; i < res->ring_dim; i++)
+                {
+                    if(op->coeff[i] > half_mod)
+                    {
+                        res->coeff[i] = ((op->coeff[i] - mod) % mod);
+                    }
+                    else
+                    {
+                        res->coeff[i] = (op->coeff[i] % mod);
+                    }
+                }
+
+                return 0;
+            }
+        }
+
+        static void bit_reverse(poly* opres)
+        {
+            size_t j = 0;
+            for(size_t i = 1; i < opres->ring_dim; i++)
+            {
+                size_t bit = opres->ring_dim >> 1;
+                while(j & bit)
+                {
+                    j ^= bit;
+                    bit >>= 1;
+                }
+                j^= bit;
+                if(i < j)
+                {
+                    std::swap(opres->coeff[i], opres->coeff[j]);
+                }
+            }
+        }
+
+        static void standard_ntt(poly* op, const mpz_class& q, const mpz_class& g)
+        {
+            bit_reverse(op);
+
+            mpz_class u, v, w, w_len;
+
+            for(int len = 2; len <= op->ring_dim; len <<= 1)
+            {
+                mpz_class exp = q - 1;
+                exp = exp / len;
+                mpz_powm(w_len.get_mpz_t(), g.get_mpz_t(), exp.get_mpz_t(), q.get_mpz_t());
+
+                for(int i = 0; i < op->ring_dim; i += len)
+                {
+                    w = 1;
+                    for(int j = 0; j < len / 2; j++)
+                    {
+                        u = op->coeff[i + j];
+                        v = (op->coeff[i + j + len / 2] * w) % q;
+                        
+                        op->coeff[i + j] = (u + v) % q;
+                        op->coeff[i + j + len / 2] = (u - v + q) % q;
+
+                        w = (w * w_len) % q;
+                    }
+                }
+            }
+        }
+
+        static void negacyclic_ntt(poly* op, const mpz_class& q, const mpz_class& g)
+        {
+            mpz_class exp = (q - 1) / (2 * op->ring_dim);
+            mpz_class psi;
+            mpz_powm(psi.get_mpz_t(), g.get_mpz_t(), exp.get_mpz_t(), q.get_mpz_t());
             
-            this->coeff = new mpz_t[size];
-            for(int i = 0; i < size; i++)
+            mpz_class psi_pow = 1;
+            for(int i = 0; i < op->ring_dim; i++)
             {
-                mpz_init_set_str(*(this->coeff + i), "0", 10);
+                op->coeff[i] = (op->coeff[i] * psi_pow) % q;
+                psi_pow = (psi_pow * psi) % q;
             }
-        };
 
-        ~poly()
+            standard_ntt(op, q, g);
+        }
+
+        static void negacyclic_intt(poly* op, const mpz_class& q, const mpz_class& g)
         {
-            for(int i = 0; i < this->size; i++)
+            mpz_class g_inv;
+            mpz_invert(g_inv.get_mpz_t(), g.get_mpz_t(), q.get_mpz_t());
+            
+            standard_ntt(op, q, g_inv);
+
+            mpz_class exp = (q - 1) / (2 * op->ring_dim);
+            mpz_class psi, psi_inv;
+            mpz_powm(psi.get_mpz_t(), g.get_mpz_t(), exp.get_mpz_t(), q.get_mpz_t());
+            mpz_invert(psi_inv.get_mpz_t(), psi.get_mpz_t(), q.get_mpz_t());
+
+            mpz_class n = op->ring_dim;
+            mpz_class n_inv;
+            mpz_invert(n_inv.get_mpz_t(), n.get_mpz_t(), q.get_mpz_t());
+
+            mpz_class psi_pow_inv = 1;
+            for(int i = 0; i < op->ring_dim; i++)
             {
-                mpz_clear(*(this->coeff + i));
+                op->coeff[i] = (n_inv * ((op->coeff[i] * psi_pow_inv) % q)) % q;
+                psi_pow_inv = (psi_pow_inv * psi_inv) % q;
             }
-            delete(this->coeff);
+        }
+
+        static int poly_mul_ntt(poly* op1, poly* op2, const mpz_class& mod, const mpz_class& g, poly* res)
+        {
+            if((op1->ring_dim != res->ring_dim) || (op2->ring_dim != res->ring_dim))
+            {
+                return -1;
+            }
+            else
+            {
+                poly* clone1 = op1->clone();
+                poly* clone2 = op2->clone();
+
+                negacyclic_ntt(clone1, mod, g);
+                negacyclic_ntt(clone2, mod, g);
+
+                for(int i = 0; i < res->ring_dim; i++)
+                {
+                    res->coeff[i] = (clone1->coeff[i] * clone2->coeff[i]) % mod;
+                }
+
+                negacyclic_intt(res, mod, g);
+
+
+                delete clone1;
+                delete clone2;
+                return 0;
+            }
         }
 };
 
-int poly_set(seal::Plaintext op, poly* result)
+class prime_handler
 {
-    int poly_degree = op.coeff_count();
-
-    for(int i = 0; i < poly_degree; i++)
-    {
-        mpz_set_ui(*(result->coeff + i), op[i]);
-    }
-
-    return 0;
-}
-
-int poly_get(poly* op, seal::Plaintext& result)
-{
-    int poly_degree = op->size;
-
-    for(int i = 0; i < poly_degree; i++)
-    {
-        result[i] = mpz_get_ui(*(op->coeff + i));
-    }
-
-    return 0;
-}
-
-int poly_neg(poly* op, poly* result)
-{
-    poly* temp = new poly(op->size);
-
-    if(op->size != result->size)
-    {
-        delete temp;
-
-        return -1;
-    }
-    else
-    {
-        for(int i = 0; i < result->size; i++)
+    public:
+        static int is_prime(const mpz_class& p)
         {
-            mpz_set(*(temp->coeff + i), *(op->coeff + i));
-            mpz_neg(*(temp->coeff + i), *(temp->coeff + i));
+            int result = mpz_probab_prime_p(p.get_mpz_t(), 25);
+
+            return result;
         }
 
-        for(int i = 0; i < result->size; i++)
+        static int find_ntt_prime(int ring_dim, int bits, mpz_class& res)
         {
-            mpz_set(*(result->coeff + i), *(temp->coeff + i));
-        }
+            mpz_class ring_dim_tw = 2 * ring_dim;
+            res = mpz_class(1) << bits;
+            mpz_class k = res / ring_dim_tw;
 
-        delete temp;
-
-        return 0;
-    }
-}
-
-int poly_add(poly* op1, poly* op2, poly* result)
-{
-    poly* temp1 = new poly(op1->size);
-    poly* temp2 = new poly(op2->size);
-
-    if(op1->size != op2->size || op1->size != result->size || op2->size != result->size)
-    {
-        delete temp1;
-        delete temp2;
-
-        return -1;
-    }
-    else
-    {
-        for(int i = 0; i < result->size; i++)
-        {
-            mpz_set(*(temp1->coeff + i), *(op1->coeff + i));
-            mpz_set(*(temp2->coeff + i), *(op2->coeff + i));
-        }
-
-        for(int i = 0; i < result->size; i++)
-        {
-            mpz_add(*(result->coeff + i), *(temp1->coeff + i), *(temp2->coeff + i));
-        }
-
-        delete temp1;
-        delete temp2;
-
-        return 0;
-    }
-}
-
-int poly_mul(poly* op1, poly* op2, poly* result)
-{
-    poly* temp1 = new poly(op1->size);
-    poly* temp2 = new poly(op2->size);
-
-    if(op1->size != op2->size || op1->size != result->size || op2->size != result->size)
-    {
-        delete temp1;
-        delete temp2;
-
-        return -1;
-    }
-    else
-    {
-        for(int i = 0; i < result->size; i++)
-        {
-            mpz_set(*(temp1->coeff + i), *(op1->coeff + i));
-            mpz_set(*(temp2->coeff + i), *(op2->coeff + i));
-        }
-
-        poly* result_long = new poly(2 * result->size - 1);
-        mpz_t temp;
-        mpz_init_set_str(temp, "0", 10);
-
-        for(int i = 0; i < result->size; i++)
-        {
-            for(int j = 0; j < result->size; j++)
+            while(true)
             {
-                mpz_mul(temp, *(temp1->coeff + i), *(temp2->coeff + j));
-                mpz_add(*(result_long->coeff + i + j), *(result_long->coeff + i + j), temp);
+                res = k * ring_dim_tw;
+                res = res + 1;
+
+                if(is_prime(res) > 0)
+                {
+                    break;
+                }
+                else
+                {
+                    k = k + 1;
+                }
             }
-        }
 
-        for(int i = 0; i < result->size; i++)
-        {
-            mpz_set(*(result->coeff + i), *(result_long->coeff + i));
-        }
-
-        for(int i = result->size; i < 2 * result->size; i++)
-        {
-            mpz_neg(*(result_long->coeff + i), *(result_long->coeff + i));
-            mpz_add(*(result->coeff + i - result->size), *(result->coeff + i - result->size), *(result_long->coeff + i));
-        }
-
-        delete temp1;
-        delete temp2;
-        delete result_long;
-        mpz_clear(temp);
-
-        return 0;
-    }
-}
-
-int poly_mod(poly* op, mpz_t mod, poly* result)
-{
-    poly* temp = new poly(op->size);
-
-    for(int i = 0; i < temp->size; i++)
-    {
-        mpz_set(*(temp->coeff + i), *(op->coeff + i));
-    }
-
-    for(int i = 0; i < temp->size; i++)
-    {
-        mpz_mod(*(temp->coeff + i), *(temp->coeff + i), mod);
-    }
-
-    for(int i = 0; i < temp->size; i++)
-    {
-        mpz_set(*(result->coeff + i), *(temp->coeff + i));
-    }
-
-    delete temp;
-
-    return 0;
-}
-
-int is_prime(mpz_t p)
-{
-    int result = mpz_probab_prime_p(p, 15);
-
-    return result;
-}
-
-mpz_t* find_ntt_prime(int ring_size, int bits)
-{
-    mpz_t d_ring_size, k, *target_number = new mpz_t[1];
-    mpz_init_set_si(d_ring_size, 2 * ring_size);
-    mpz_init(k);
-    mpz_init(*target_number);
-
-    mpz_ui_pow_ui(*target_number, 2, bits);
-    mpz_fdiv_q(k, *target_number, d_ring_size);
-
-    while(true)
-    {
-        mpz_mul(*target_number, k, d_ring_size);
-        mpz_add_ui(*target_number, *target_number, 1);
-        
-        if(is_prime(*target_number) > 0)
-        {
-            break;
-        }
-        else
-        {
-            mpz_add_ui(k, k, 1);
-        }
-    }
-
-    mpz_clears(d_ring_size, k, NULL);
-
-    return target_number;
-}
-
-void mpz_abs_sub(mpz_t res, mpz_t a, mpz_t b) 
-{
-    mpz_sub(res, a, b);
-    mpz_abs(res, res);
-}
-
-void pollard_rho(mpz_t factor, mpz_t n) 
-{
-    if (mpz_divisible_ui_p(n, 2)) 
-    {
-        mpz_set_ui(factor, 2);
-        return;
-    }
-
-    mpz_t x, y, c, d, val, temp_xy;
-    mpz_inits(x, y, c, d, val, temp_xy, NULL);
-
-    mpz_set_ui(x, 2);
-    mpz_set_ui(y, 2);
-    mpz_set_ui(c, 1);
-    mpz_set_ui(d, 1);
-
-    while (mpz_cmp_ui(d, 1) == 0) 
-    {
-        mpz_mul(x, x, x);
-        mpz_add(x, x, c);
-        mpz_mod(x, x, n);
-
-        mpz_mul(y, y, y);
-        mpz_add(y, y, c);
-        mpz_mod(y, y, n);
-        
-        mpz_mul(y, y, y);
-        mpz_add(y, y, c);
-        mpz_mod(y, y, n);
-
-        mpz_abs_sub(temp_xy, x, y);
-        mpz_gcd(d, temp_xy, n);
-
-        if (mpz_cmp(d, n) == 0) 
-        {
-            mpz_set_ui(factor, 1); // Fail signal
-            break;
-        }
-    }
-    
-    if (mpz_cmp_ui(d, 1) != 0) 
-    {
-        mpz_set(factor, d);
-    }
-
-    mpz_clears(x, y, c, d, val, temp_xy, NULL);
-}
-
-void factorize_recursive(mpz_t n, std::vector<mpz_t*>& factors) 
-{
-    if (mpz_cmp_ui(n, 1) <= 0) return;
-
-    if (mpz_probab_prime_p(n, 25) > 0) 
-    {
-        bool exists = false;
-        for(auto ptr : factors) 
-        {
-            if(mpz_cmp(*ptr, n) == 0) 
-            { 
-                exists = true; break; 
-            }
-        }
-        if (!exists) 
-        {
-            mpz_t* p = new mpz_t[1];
-            mpz_init_set(*p, n);
-            factors.push_back(p);
-        }
-        return;
-    }
-
-    mpz_t factor;
-    mpz_init(factor);
-    
-    pollard_rho(factor, n);
-
-
-    if (mpz_cmp_ui(factor, 1) == 0 || mpz_cmp(factor, n) == 0) 
-    {
-        
-    } 
-    else 
-    {
-        mpz_t remaining;
-        mpz_init(remaining);
-        mpz_divexact(remaining, n, factor);
-
-        factorize_recursive(factor, factors);
-        factorize_recursive(remaining, factors);
-        
-        mpz_clear(remaining);
-    }
-    mpz_clear(factor);
-}
-
-int find_primitive_root(mpz_t mod, mpz_t result) {
-    mpz_t phi, exp, res, g;
-    mpz_inits(phi, exp, res, g, NULL);
-
-    mpz_sub_ui(phi, mod, 1); // phi = p - 1
-
-    std::vector<mpz_t*> factors;
-    
-    mpz_t n;
-    mpz_init_set(n, phi);
-    
-    unsigned long small_primes[] = {2, 3, 5, 7, 11, 13, 17, 19, 23};
-    for (unsigned long p : small_primes) 
-    {
-        if (mpz_divisible_ui_p(n, p)) 
-        {
-            mpz_t* f = new mpz_t[1];
-            mpz_init_set_ui(*f, p);
-            factors.push_back(f);
-            while (mpz_divisible_ui_p(n, p)) mpz_divexact_ui(n, n, p);
-        }
-    }
-
-    factorize_recursive(n, factors);
-
-    mpz_set_ui(g, 2);
-    while (true) 
-    {
-        bool is_primitive = true;
-        
-        for (mpz_t* factor : factors) 
-        {
-            mpz_divexact(exp, phi, *factor);  
-            mpz_powm(res, g, exp, mod);      
             
-            if (mpz_cmp_ui(res, 1) == 0) 
-            {   
-                is_primitive = false;
-                break;
-            }
+            return 0;
         }
 
-        if (is_primitive) 
+        static int pollard_rho(const mpz_class& n, mpz_class& res)
         {
-            mpz_set(result, g);
-            break;
-        }
-        mpz_add_ui(g, g, 1);
-    }
-
-    for (auto ptr : factors) 
-    {
-        mpz_clear(*ptr);
-        delete[] ptr;
-    }
-    mpz_clears(phi, exp, res, g, n, NULL);
-    return 0;
-}
-
-void bit_reverse(poly* op) 
-{
-    size_t j = 0;
-    for(size_t i = 1; i < op->size; i++) 
-    {
-        size_t bit = op->size >> 1;
-        while (j & bit) 
-        {
-            j ^= bit;
-            bit >>= 1;
-        }
-        j ^= bit;
-        if (i < j) {
-            mpz_swap(op->coeff[i], op->coeff[j]);
-        }
-    }
-}
-
-void standard_ntt(poly* op, mpz_t mod, const mpz_t root) {
-    bit_reverse(op);
-
-    mpz_t u, v, w, w_len, temp_sub;
-    mpz_inits(u, v, w, w_len, temp_sub, NULL);
-
-    for (size_t len = 2; len <= op->size; len <<= 1) 
-    {
-        mpz_t exponent; 
-        mpz_init(exponent);
-        mpz_sub_ui(exponent, mod, 1);
-        mpz_divexact_ui(exponent, exponent, len);
-        mpz_powm(w_len, root, exponent, mod);
-        mpz_clear(exponent);
-
-        for (size_t i = 0; i < op->size; i += len) 
-        {
-            mpz_set_ui(w, 1); 
-            for (size_t j = 0; j < len / 2; j++) 
+            if(n % 2 == 0)
             {
-                mpz_set(u, op->coeff[i + j]);
+                res = 2;
+
+                return 0;
+            }
+            else if(is_prime(n) > 0)
+            {
+                res = n;
+                return 0;
+            }
+            else
+            {
+                mpz_class x = 2;
+                mpz_class y = 2;
+                mpz_class c = 1;
+                mpz_class d = 1;
+                mpz_class diff;
+
+                auto f = [&](const mpz_class& input) -> mpz_class
+                {
+                    return (input * input + c) % n;
+                };
+
+                while(true)
+                {
+                    x = 2;
+                    y = 2;
+                    d = 1;
+
+                    while(d == 1)
+                    {
+                        x = f(x);
+                        y = f(f(y));
+
+                        diff = x - y;
+                        if(diff < 0)
+                        {
+                            diff = - diff;
+                        }
+
+                        mpz_gcd(d.get_mpz_t(), diff.get_mpz_t(), n.get_mpz_t());
+                    }
+
+                    if(d == n)
+                    {
+                        c = c + 1;
+                    }
+                    else
+                    {
+                        break;
+                    }
+                }
                 
-                mpz_mul(v, op->coeff[i + j + len / 2], w);
-                mpz_mod(v, v, mod);
+                res = d;
 
-                mpz_add(op->coeff[i + j], u, v);
-                mpz_mod(op->coeff[i + j], op->coeff[i + j], mod);
-
-                mpz_sub(temp_sub, u, v);
-                mpz_mod(op->coeff[i + j + len / 2], temp_sub, mod); 
-
-                mpz_mul(w, w, w_len);
-                mpz_mod(w, w, mod);
+                return 0;
             }
         }
-    }
-    mpz_clears(u, v, w, w_len, temp_sub, NULL);
-}
 
-void ntt_negacyclic(poly* op, mpz_t mod, mpz_t g) 
-{
-    mpz_t psi, psi_pow, temp;
-    mpz_inits(psi, psi_pow, temp, NULL);
-
-    mpz_t exp;
-    mpz_init(exp);
-    mpz_sub_ui(exp, mod, 1);     
-    mpz_divexact_ui(exp, exp, 2 * op->size);
-    mpz_powm(psi, g, exp, mod); 
-    mpz_clear(exp);
-
-    mpz_set_ui(psi_pow, 1);
-    for (size_t i = 0; i < op->size; i++) 
-    {
-        mpz_mul(temp, op->coeff[i], psi_pow);
-        mpz_mod(op->coeff[i], temp, mod);
-
-        mpz_mul(psi_pow, psi_pow, psi);
-        mpz_mod(psi_pow, psi_pow, mod);
-    }
-
-    standard_ntt(op, mod, g);
-
-    mpz_clears(psi, psi_pow, temp, NULL);
-}
-
-void intt_negacyclic(poly* op, mpz_t mod, const mpz_t g) 
-{
-    mpz_t psi, psi_inv, psi_pow_inv, temp, n_inv;
-    mpz_inits(psi, psi_inv, psi_pow_inv, temp, n_inv, NULL);
-
-    mpz_t g_inv;
-    mpz_init(g_inv);
-    mpz_invert(g_inv, g, mod);
-    
-    standard_ntt(op, mod, g_inv);
-
-    mpz_clear(g_inv);
-
-    mpz_t exp;
-    mpz_init(exp);
-    mpz_sub_ui(exp, mod, 1);
-    mpz_divexact_ui(exp, exp, 2 * op->size);
-    mpz_powm(psi, g, exp, mod);
-    mpz_invert(psi_inv, psi, mod);
-    mpz_clear(exp);
-    
-    mpz_t n_mpz;
-    mpz_init_set_si(n_mpz, op->size);
-    mpz_invert(n_inv, n_mpz, mod); 
-    mpz_clear(n_mpz);
-
-    mpz_set_ui(psi_pow_inv, 1);
-    for (size_t i = 0; i < op->size; i++) 
-    {
-        mpz_mul(temp, op->coeff[i], psi_pow_inv);
-        mpz_mod(temp, temp, mod);
-
-        mpz_mul(op->coeff[i], temp, n_inv);
-        mpz_mod(op->coeff[i], op->coeff[i], mod);
-
-        mpz_mul(psi_pow_inv, psi_pow_inv, psi_inv);
-        mpz_mod(psi_pow_inv, psi_pow_inv, mod);
-    }
-
-    mpz_clears(psi, psi_inv, psi_pow_inv, temp, n_inv, NULL);
-}
-
-int poly_mul_ntt(poly* op1, poly* op2, mpz_t mod, mpz_t g, poly* result)
-{
-    poly* temp1 = new poly(op1->size);
-    poly* temp2 = new poly(op2->size);
-
-    if(op1->size != op2->size || op1->size != result->size || op2->size != result->size)
-    {
-        delete temp1;
-        delete temp2;
-
-        return -1;
-    }
-    else
-    {
-        for(int i = 0; i < result->size; i++)
+        static int factorize_recursive(const mpz_class& n, std::vector<mpz_class>& factors)
         {
-            mpz_set(*(temp1->coeff + i), *(op1->coeff + i));
-            mpz_set(*(temp2->coeff + i), *(op2->coeff + i));
+            if(n <= 1)
+            {
+                return -1;
+            }
+            
+            mpz_class in_n = n;
+
+            unsigned long small_primes[] = {2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31};
+            for(unsigned long p : small_primes)
+            {
+                while(in_n % p == 0)
+                {
+                    factors.push_back(p);
+                    in_n = in_n / p;
+                }
+
+                if(in_n == 1) 
+                {
+                    return 0;
+                }
+            }
+
+            if(is_prime(in_n) > 0)
+            {
+                factors.push_back(in_n);
+                return 0;
+            }
+
+            mpz_class factor;
+            mpz_class remain;
+
+            pollard_rho(in_n, factor);
+
+            if(factor == 1 || factor == in_n)
+            {
+                factors.push_back(in_n);
+                return 0;
+            }
+            else
+            {
+                remain = in_n / factor;
+                factorize_recursive(factor, factors);
+                factorize_recursive(remain, factors);
+            }
+
+            return 0;
+            
         }
 
-        ntt_negacyclic(temp1, mod, g);
-        ntt_negacyclic(temp2, mod, g);
-
-        for (size_t i = 0; i < result->size; i++) 
+        static int find_primitive_root(const mpz_class& p, mpz_class& res)
         {
-            mpz_mul(result->coeff[i], temp1->coeff[i], temp2->coeff[i]);
+            mpz_class phi = p - 1;
+            mpz_class exp, com, g = 2;
+            std::vector<mpz_class> factors;
+
+            factorize_recursive(phi, factors);
+
+            if (!factors.empty()) 
+            {
+                std::sort(factors.begin(), factors.end());
+                auto last = std::unique(factors.begin(), factors.end());
+                factors.erase(last, factors.end());
+            }
+
+            while(true)
+            {
+                bool is_primitive = true;
+
+                for(const auto& factor : factors)
+                {
+                    exp = phi / factor;
+                    mpz_powm(com.get_mpz_t(), g.get_mpz_t(), exp.get_mpz_t(), p.get_mpz_t());
+                    
+                    if(com == 1)
+                    {
+                        is_primitive = false;
+                        break;
+                    }
+                }
+
+                if(is_primitive)
+                {
+                    res = g;
+                    break;
+                }
+                else
+                {
+                    g = g + 1;
+                }
+            }
+
+            return 0;
         }
-
-        poly_mod(result, mod, result);
-
-        intt_negacyclic(result, mod, g);
-
-        delete temp1;
-        delete temp2;
-        
-        return 0;
-    }
-}
-
-
+};
