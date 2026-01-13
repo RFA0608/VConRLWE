@@ -4,11 +4,9 @@
 #include <gmpxx.h>
 #include <chrono>
 
-#include "seal/seal.h"
 #include "RLWE.h"
 
 using namespace std;
-using namespace seal;
 
 int main()
 {
@@ -16,46 +14,36 @@ int main()
     // Setting for Encryption
     // ============================================================================= //
     // set poly degree and plaintext modulus bits size
-    int poly_degree = (int)powl(2, 14);
-    int plain_modulus = 42;
+    int poly_degree = (int)powl(2, 13);
+    int plain_bits = 40;
+    int cipher_bits = 210;
 
-    // make context from parameters
-    EncryptionParameters parms(scheme_type::bgv);
-    size_t poly_modulus_degree = (size_t)poly_degree;
-    parms.set_poly_modulus_degree(poly_modulus_degree);
-    parms.set_coeff_modulus(CoeffModulus::BFVDefault(poly_modulus_degree));
-    parms.set_plain_modulus(PlainModulus::Batching(poly_modulus_degree, plain_modulus));
-    SEALContext context(parms);
+    mpz_class plain_mod;
+    prime_handler::find_ntt_prime(poly_degree, plain_bits, plain_mod);
+    mpz_class g_p;
+    prime_handler::find_primitive_root(plain_mod, g_p);
 
-    // set batch encoder 
-    BatchEncoder batch_encoder(context);
-    size_t slot_count = batch_encoder.slot_count();
+    mpz_class cipher_mod;
+    prime_handler::find_ntt_prime(poly_degree, cipher_bits, cipher_mod);
+    mpz_class g_c;
+    prime_handler::find_primitive_root(cipher_mod, g_c);
 
     // ============================================================================= //
     // Test
     // ============================================================================= //
-    vector<int64_t> pod_matrix(slot_count, 0LL);
+    vector<int64_t> pod_matrix(poly_degree, 0LL);
     pod_matrix[0] = 1;
     pod_matrix[1] = -2;
     pod_matrix[2] = 4;
     pod_matrix[3] = -8;
     pod_matrix[4] = 11;
 
-    Plaintext packed_data, result_data(poly_degree);
-    batch_encoder.encode(pod_matrix, packed_data);
+    poly* packed_data = new poly(poly_degree), * result_data = new poly(poly_degree);
+    batch_encoder::encode(pod_matrix, plain_mod, g_p, packed_data);
     
     poly* p1 = new poly(poly_degree);
     poly* p2 = new poly(poly_degree);
     poly* p3 = new poly(poly_degree);
-
-    mpz_class plain_mod(to_string(parms.plain_modulus().value()));
-    mpz_class g_p;
-    prime_handler::find_primitive_root(plain_mod, g_p);
-
-    mpz_class cipher_mod;
-    prime_handler::find_ntt_prime(poly_degree, 210, cipher_mod);
-    mpz_class g_c;
-    prime_handler::find_primitive_root(cipher_mod, g_c);
 
     poly_handler::plain_2_poly(packed_data, p1);
     poly_handler::plain_2_poly(packed_data, p2);
@@ -82,14 +70,16 @@ int main()
     std::chrono::duration<double, std::milli> ms_double = end - start;
     std::cout << "runtime: " << ms_double.count() << " ms" << std::endl;
     
-    vector<int64_t> repod_matrix(slot_count, 0LL);
-    batch_encoder.decode(result_data, repod_matrix);
+    vector<int64_t> repod_matrix(poly_degree, 0LL);
+    batch_encoder::decode(result_data, plain_mod, g_p, repod_matrix);
 
     for(int i = 0; i < 5; i++)
     {
         cout << repod_matrix[i] << endl;
     }
 
+    delete packed_data;
+    delete result_data;
     delete p1;
     delete p2;
     delete p3;

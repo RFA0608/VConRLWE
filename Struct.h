@@ -1,10 +1,8 @@
-#include <gmpxx.h>
 #include <vector>
 #include <iostream>
 #include <algorithm>
 #include <cmath>
-
-#include "seal/seal.h"
+#include <gmpxx.h>
 
 class poly
 {
@@ -35,9 +33,9 @@ class poly
 class poly_handler
 {
     public:
-        static int plain_2_poly(seal::Plaintext op, poly* res)
+        static int plain_2_poly(poly* op, poly* res)
         {
-            if((int)op.coeff_count() != res->ring_dim)
+            if(op->ring_dim != res->ring_dim)
             {
                 return -1;
             }
@@ -45,24 +43,24 @@ class poly_handler
             {
                 for(int i = 0; i < res->ring_dim; i++)
                 {
-                    res->coeff[i] = op[i];
+                    res->coeff[i] = op->coeff[i];
                 }
 
                 return 0;
             }
         }
 
-        static int poly_2_plain(poly* op, seal::Plaintext& res)
+        static int poly_2_plain(poly* op, poly* res)
         {
-            if(op->ring_dim != (int)res.coeff_count())
+            if(op->ring_dim != res->ring_dim)
             {
                 return -1;
             }
             else
             {
-                for(int i = 0; i < (int)res.coeff_count(); i++)
+                for(int i = 0; i < res->ring_dim; i++)
                 {
-                    res[i] = op->coeff[i].get_ui();
+                    res->coeff[i] = op->coeff[i];
                 }
 
                 return 0;
@@ -312,6 +310,43 @@ class poly_handler
                 delete clone2;
                 return 0;
             }
+        }
+};
+
+class batch_encoder
+{
+    public:
+        static void encode(std::vector<int64_t>& slots, const mpz_class& p, const mpz_class& g, poly* res) 
+        {
+            for (int i = 0; i < res->ring_dim; i++) 
+            {
+                if (i < slots.size()) 
+                {
+                    res->coeff[i] = slots[i];
+                } 
+                else 
+                {
+                    res->coeff[i] = 0;
+                }
+            }
+
+            poly_handler::negacyclic_intt(res, p, g);
+        }
+
+        static void decode(poly* op, const mpz_class& p, const mpz_class& g, std::vector<int64_t>& res) 
+        {
+            poly* temp = op->clone();
+
+            poly_handler::negacyclic_ntt(temp, p, g);
+
+            res.resize(op->ring_dim);
+
+            for (size_t i = 0; i < op->ring_dim; i++) 
+            {
+                res[i] = temp->coeff[i].get_ui(); 
+            }
+
+            delete temp;
         }
 };
 
