@@ -2,6 +2,7 @@
 #include <vector>
 #include <string>
 #include <gmpxx.h>
+#include <chrono>
 
 #include "seal/seal.h"
 #include "RLWE.h"
@@ -67,14 +68,19 @@ int main()
     poly* sk = new poly(poly_degree);
     random_handler::secret_key(sk);
 
+    auto start = std::chrono::high_resolution_clock::now();
+
     crypto_handler::encrypt(p1, sk, c1);
     crypto_handler::encrypt(p2, sk, c2);
     crypto_handler::eval_mul(c1, c2, c3);
     crypto_handler::eval_add(c3, c3, c4);
 
     crypto_handler::decrypt(c4, sk, p3);
-
     poly_handler::poly_2_plain(p3, result_data);
+
+    auto end = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double, std::milli> ms_double = end - start;
+    std::cout << "runtime: " << ms_double.count() << " ms" << std::endl;
     
     vector<int64_t> repod_matrix(slot_count, 0LL);
     batch_encoder.decode(result_data, repod_matrix);
