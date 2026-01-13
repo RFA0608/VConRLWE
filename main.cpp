@@ -87,5 +87,10 @@ int main()
     delete p1;
     delete p2;
     delete p3;
+    delete c1;
+    delete c2;
+    delete c3;
+    delete c4;
+    delete sk;
     return 0;
 }
