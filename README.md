@@ -27,6 +27,7 @@ Push below command on your CMD(bash), respectively.
 4. cipher 클래스 재수정(거의 대부분) (v)
 5. 메모리 최적화 (v)
 6. 암호 합, 곱 연산 추가 (v)
+7. SEAL 없애버리고 batch_encoder 구현 추가(2^15보다 큰 수도 가능:[느림])
 
 ## 할것
 1. 지수 연산 구현
