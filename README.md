@@ -21,6 +21,12 @@ Push below command on your CMD(bash), respectively.
 
 # 3️⃣task(20260115-0703 updated)
 ## 완료됨
+### 260112
+1. 벡터, 행렬, 암호문 구조화
+2. 연산 형태 구조화
+3. 필요한 연산기 구조화
+### 260113
+1. 구현
 ### 260114
 1. 모든 mpz_t 타입을 c++ mpz_class로 변경
 2. class에 담기는 배열을 std::vector로 변경
