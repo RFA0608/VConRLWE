@@ -124,6 +124,30 @@ class crypto_handler
             }
             else
             {
+
+                switch(res->level)
+                {
+                    case 0:
+                    {
+                        res->level = 1;
+
+                        break;
+                    }
+                    case 1:
+                    {
+                        delete res->ciphertext.back();
+                        res->ciphertext.pop_back();
+                        delete res->ciphertext.back();
+                        res->ciphertext.pop_back();
+
+                        break;
+                    }
+                    default:
+                    {
+                        return -1;
+                    }
+                }
+
                 poly* a = new poly(res->ring_dim);
                 random_handler::public_key(res->cipher_mod, a);
 
@@ -141,8 +165,7 @@ class crypto_handler
 
                 res->ciphertext.push_back(b);
                 res->ciphertext.push_back(a);
-                res->level = 1;
-
+                
                 delete ska;
                 delete e;
 

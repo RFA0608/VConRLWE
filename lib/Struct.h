@@ -65,7 +65,7 @@ class seed_gen
 class poly_handler
 {
     public:
-        static int plain_2_poly(poly* op, poly* res)
+        static int pack_2_plain(poly* op, poly* res)
         {
             if(op->ring_dim != res->ring_dim)
             {
@@ -82,7 +82,7 @@ class poly_handler
             }
         }
 
-        static int poly_2_plain(poly* op, poly* res)
+        static int plain_2_pack(poly* op, poly* res)
         {
             if(op->ring_dim != res->ring_dim)
             {
@@ -499,7 +499,12 @@ class batch_encoder
 
             for (size_t i = 0; i < op->ring_dim; i++) 
             {
-                res[i] = temp->coeff[i].get_ui(); 
+                if(temp->coeff[i] > (p / 2))
+                {
+                    temp->coeff[i] -= p;
+                }
+
+                res[i] = temp->coeff[i].get_si(); 
             }
 
             delete temp;
