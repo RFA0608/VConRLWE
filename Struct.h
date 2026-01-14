@@ -30,6 +30,33 @@ class poly
     }
 };
 
+class seed_gen
+{
+    public:
+        static gmp_randstate_t& get_rand_state()
+        {
+            thread_local static struct randwrapper
+            {
+                gmp_randstate_t state;
+
+                randwrapper()
+                {
+                    gmp_randinit_default(state);
+            
+                    std::random_device rd;
+                    gmp_randseed_ui(state, rd());
+                }
+
+                ~randwrapper()
+                {
+                    gmp_randclear(state);
+                }
+            } wrapper;
+
+            return wrapper.state;
+        }
+};
+
 class poly_handler
 {
     public:
@@ -215,7 +242,7 @@ class poly_handler
             }
         }
 
-        static void standard_ntt(poly* op, const mpz_class& q, const mpz_class& g)
+        static void standard_ntt_g(poly* op, const mpz_class& q, const mpz_class& g)
         {
             bit_reverse(op);
 
@@ -244,7 +271,36 @@ class poly_handler
             }
         }
 
-        static void negacyclic_ntt(poly* op, const mpz_class& q, const mpz_class& g)
+        static void standard_ntt(poly* op, const mpz_class& q, const mpz_class& omega)
+        {
+            bit_reverse(op);
+
+            mpz_class u, v, w, w_len;
+
+            for(int len = 2; len <= op->ring_dim; len <<= 1)
+            {
+                mpz_class exp = op->ring_dim;
+                exp = exp / len;
+                mpz_powm(w_len.get_mpz_t(), omega.get_mpz_t(), exp.get_mpz_t(), q.get_mpz_t());
+
+                for(int i = 0; i < op->ring_dim; i += len)
+                {
+                    w = 1;
+                    for(int j = 0; j < len / 2; j++)
+                    {
+                        u = op->coeff[i + j];
+                        v = (op->coeff[i + j + len / 2] * w) % q;
+                        
+                        op->coeff[i + j] = (u + v) % q;
+                        op->coeff[i + j + len / 2] = (u - v + q) % q;
+
+                        w = (w * w_len) % q;
+                    }
+                }
+            }
+        }
+
+        static void negacyclic_ntt_g(poly* op, const mpz_class& q, const mpz_class& g)
         {
             mpz_class exp = (q - 1) / (2 * op->ring_dim);
             mpz_class psi;
@@ -260,7 +316,22 @@ class poly_handler
             standard_ntt(op, q, g);
         }
 
-        static void negacyclic_intt(poly* op, const mpz_class& q, const mpz_class& g)
+        static void negacyclic_ntt(poly* op, const mpz_class& q, const mpz_class& psi)
+        {
+            mpz_class psi_pow = 1;
+            for(int i = 0; i < op->ring_dim; i++)
+            {
+                op->coeff[i] = (op->coeff[i] * psi_pow) % q;
+                psi_pow = (psi_pow * psi) % q;
+            }
+
+            mpz_class omega;
+            mpz_powm_ui(omega.get_mpz_t(), psi.get_mpz_t(), 2, q.get_mpz_t());
+
+            standard_ntt(op, q, omega);
+        }
+
+        static void negacyclic_intt_g(poly* op, const mpz_class& q, const mpz_class& g)
         {
             mpz_class g_inv;
             mpz_invert(g_inv.get_mpz_t(), g.get_mpz_t(), q.get_mpz_t());
@@ -284,7 +355,27 @@ class poly_handler
             }
         }
 
-        static int poly_mul_ntt(poly* op1, poly* op2, const mpz_class& mod, const mpz_class& g, poly* res)
+        static void negacyclic_intt(poly* op, const mpz_class& q, const mpz_class& psi)
+        {
+            mpz_class psi_inv, omega_inv;
+            mpz_invert(psi_inv.get_mpz_t(), psi.get_mpz_t(), q.get_mpz_t());
+            mpz_powm_ui(omega_inv.get_mpz_t(), psi_inv.get_mpz_t(), 2, q.get_mpz_t());
+
+            standard_ntt(op, q, omega_inv);
+
+            mpz_class n = op->ring_dim;
+            mpz_class n_inv;
+            mpz_invert(n_inv.get_mpz_t(), n.get_mpz_t(), q.get_mpz_t());
+
+            mpz_class psi_pow_inv = 1;
+            for(int i = 0; i < op->ring_dim; i++)
+            {
+                op->coeff[i] = (n_inv * ((op->coeff[i] * psi_pow_inv) % q)) % q;
+                psi_pow_inv = (psi_pow_inv * psi_inv) % q;
+            }
+        }
+
+        static int poly_mul_ntt_g(poly* op1, poly* op2, const mpz_class& mod, const mpz_class& g, poly* res)
         {
             if((op1->ring_dim != res->ring_dim) || (op2->ring_dim != res->ring_dim))
             {
@@ -311,12 +402,39 @@ class poly_handler
                 return 0;
             }
         }
+
+        static int poly_mul_ntt(poly* op1, poly* op2, const mpz_class& mod, const mpz_class& psi, poly* res)
+        {
+            if((op1->ring_dim != res->ring_dim) || (op2->ring_dim != res->ring_dim))
+            {
+                return -1;
+            }
+            else
+            {
+                poly* clone1 = op1->clone();
+                poly* clone2 = op2->clone();
+
+                negacyclic_ntt(clone1, mod, psi);
+                negacyclic_ntt(clone2, mod, psi);
+
+                for(int i = 0; i < res->ring_dim; i++)
+                {
+                    res->coeff[i] = (clone1->coeff[i] * clone2->coeff[i]) % mod;
+                }
+
+                negacyclic_intt(res, mod, psi);
+
+                delete clone1;
+                delete clone2;
+                return 0;
+            }
+        }
 };
 
 class batch_encoder
 {
     public:
-        static void encode(std::vector<int64_t>& slots, const mpz_class& p, const mpz_class& g, poly* res) 
+        static void encode_g(std::vector<int64_t>& slots, const mpz_class& p, const mpz_class& g, poly* res) 
         {
             for (int i = 0; i < res->ring_dim; i++) 
             {
@@ -330,14 +448,47 @@ class batch_encoder
                 }
             }
 
-            poly_handler::negacyclic_intt(res, p, g);
+            poly_handler::negacyclic_intt_g(res, p, g);
         }
 
-        static void decode(poly* op, const mpz_class& p, const mpz_class& g, std::vector<int64_t>& res) 
+        static void encode(std::vector<int64_t>& slots, const mpz_class& p, const mpz_class& psi, poly* res) 
+        {
+            for (int i = 0; i < res->ring_dim; i++) 
+            {
+                if (i < slots.size()) 
+                {
+                    res->coeff[i] = slots[i];
+                } 
+                else 
+                {
+                    res->coeff[i] = 0;
+                }
+            }
+
+            poly_handler::negacyclic_intt(res, p, psi);
+        }
+
+        static void decode_g(poly* op, const mpz_class& p, const mpz_class& g, std::vector<int64_t>& res) 
         {
             poly* temp = op->clone();
 
-            poly_handler::negacyclic_ntt(temp, p, g);
+            poly_handler::negacyclic_ntt_g(temp, p, g);
+
+            res.resize(op->ring_dim);
+
+            for (size_t i = 0; i < op->ring_dim; i++) 
+            {
+                res[i] = temp->coeff[i].get_ui(); 
+            }
+
+            delete temp;
+        }
+
+        static void decode(poly* op, const mpz_class& p, const mpz_class& psi, std::vector<int64_t>& res) 
+        {
+            poly* temp = op->clone();
+
+            poly_handler::negacyclic_ntt(temp, p, psi);
 
             res.resize(op->ring_dim);
 
@@ -537,6 +688,80 @@ class prime_handler
                 else
                 {
                     g = g + 1;
+                }
+            }
+
+            return 0;
+        }
+
+        static int find_ntt_root(int ring_dim, const mpz_class& p, mpz_class& res)
+        {
+            mpz_class ring_dim_tw = 2 * ring_dim;
+            mpz_class e = (p - 1) / ring_dim_tw;
+            mpz_class r = p - 2;
+            mpz_class a;
+            mpz_class check;
+
+            while(true)
+            {
+                mpz_urandomm(a.get_mpz_t(), seed_gen::get_rand_state(), r.get_mpz_t());
+                a = a + 2;
+
+                mpz_powm(res.get_mpz_t(), a.get_mpz_t(), e.get_mpz_t(), p.get_mpz_t());
+
+                if(res == 1)
+                {
+                    continue;
+                }
+
+                mpz_powm_ui(check.get_mpz_t(), res.get_mpz_t(), ring_dim, p.get_mpz_t());
+
+                if(check == p - 1)
+                {
+                    break;
+                }
+            }
+
+            return 0;
+        }
+
+        static int find_schnorr_prime(const mpz_class& q, const int& p_bits, mpz_class& res)
+        {
+            int k_bits = p_bits - mpz_sizeinbase(q.get_mpz_t(), 2) - 1;
+
+            while(true)
+            {
+                mpz_urandomb(res.get_mpz_t(), seed_gen::get_rand_state(), k_bits);
+            
+                res = q * res;
+                mpz_mul_2exp(res.get_mpz_t(), res.get_mpz_t(), 1);
+                res = res + 1;
+                
+                if(is_prime(res) > 0)
+                {
+                    break;
+                }
+            }
+            
+            return 0;
+        }
+        
+        static int find_schnorr_gen(const mpz_class& q, const mpz_class& p, mpz_class& res)
+        {
+            mpz_class e = (p - q) / q;
+            mpz_class h = 2;
+
+            while(true)
+            {
+                mpz_powm(res.get_mpz_t(), h.get_mpz_t(), e.get_mpz_t(), p.get_mpz_t());
+
+                if(res != 1)
+                {
+                    break;
+                }
+                else
+                {
+                    h += 1;
                 }
             }
 

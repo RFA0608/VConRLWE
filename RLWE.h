@@ -11,15 +11,17 @@ class cipher
         int level = 0;
         mpz_class plain_mod;
         mpz_class cipher_mod;
-        mpz_class g_plain;
-        mpz_class g_cipher;
+        mpz_class psi_plain;
+        mpz_class psi_cipher;
+        // mpz_class g_plain;
+        // mpz_class g_cipher;
 
-        cipher(int ring_dim, mpz_class plain_mod, mpz_class cipher_mod, mpz_class g_p, mpz_class g_c):
+        cipher(int ring_dim, mpz_class plain_mod, mpz_class cipher_mod, mpz_class psi_p, mpz_class psi_c):
             ring_dim(ring_dim), 
             plain_mod(plain_mod),
             cipher_mod(cipher_mod),
-            g_plain(g_p),
-            g_cipher(g_c)
+            psi_plain(psi_p),
+            psi_cipher(psi_c)
         {}
 
         ~cipher()
@@ -37,7 +39,7 @@ class cipher
 
         cipher* clone()
         {
-            cipher* clone = new cipher(this->ring_dim, this->plain_mod, this->cipher_mod, this->g_plain, this->g_cipher);
+            cipher* clone = new cipher(this->ring_dim, this->plain_mod, this->cipher_mod, this->psi_plain, this->psi_cipher);
 
             clone->level = this->level;
             for(auto& factor : this->ciphertext)
@@ -83,36 +85,13 @@ class random_handler
             }
         }
 
-        static gmp_randstate_t& get_rand_state()
-        {
-            thread_local static struct randwrapper
-            {
-                gmp_randstate_t state;
-
-                randwrapper()
-                {
-                    gmp_randinit_default(state);
-            
-                    std::random_device rd;
-                    gmp_randseed_ui(state, rd());
-                }
-
-                ~randwrapper()
-                {
-                    gmp_randclear(state);
-                }
-            } wrapper;
-
-            return wrapper.state;
-        }
-
         static void public_key(const mpz_class& mod, poly* pb)
         {
             mpz_class temp;
 
             for(int i = 0; i < pb->ring_dim; i++)
             {
-                sample_uni(mod, get_rand_state(), temp);
+                sample_uni(mod, seed_gen::get_rand_state(), temp);
                 pb->coeff[i] = temp;
             }
         }
@@ -146,7 +125,7 @@ class crypto_handler
                 random_handler::public_key(res->cipher_mod, a);
 
                 poly* ska = new poly(res->ring_dim);
-                poly_handler::poly_mul_ntt(sk, a, res->cipher_mod, res->g_cipher, ska);
+                poly_handler::poly_mul_ntt(sk, a, res->cipher_mod, res->psi_cipher, ska);
 
                 poly* e = new poly(res->ring_dim);
                 random_handler::errors(e);
@@ -181,7 +160,8 @@ class crypto_handler
                     case 1:
                     {
                         poly* ska = new poly(res->ring_dim);
-                        poly_handler::poly_mul_ntt(sk, c->ciphertext[1], c->cipher_mod, c->g_cipher, ska);
+
+                        poly_handler::poly_mul_ntt(sk, c->ciphertext[1], c->cipher_mod, c->psi_cipher, ska);
                         poly_handler::poly_neg(ska, ska);
                         poly_handler::poly_add(c->ciphertext[0], ska, res);
                         poly_handler::poly_mod(res, c->cipher_mod, res);
@@ -194,13 +174,13 @@ class crypto_handler
                     case 2:
                     {
                         poly* sk2 = new poly(res->ring_dim);
-                        poly_handler::poly_mul_ntt(sk, sk, c->cipher_mod, c->g_cipher, sk2);
+                        poly_handler::poly_mul_ntt(sk, sk, c->cipher_mod, c->psi_cipher, sk2);
 
                         poly* term2 = new poly(res->ring_dim);
-                        poly_handler::poly_mul_ntt(c->ciphertext[2], sk2, c->cipher_mod, c->g_cipher, term2);
+                        poly_handler::poly_mul_ntt(c->ciphertext[2], sk2, c->cipher_mod, c->psi_cipher, term2);
 
                         poly* term1 = new poly(res->ring_dim);
-                        poly_handler::poly_mul_ntt(c->ciphertext[1], sk, c->cipher_mod, c->g_cipher, term1);
+                        poly_handler::poly_mul_ntt(c->ciphertext[1], sk, c->cipher_mod, c->psi_cipher, term1);
 
                         poly_handler::poly_neg(term1, term1);
                         poly_handler::poly_add(c->ciphertext[0], term1, res);
@@ -231,8 +211,8 @@ class crypto_handler
                 op1->level != op2->level ||
                 op1->plain_mod != op2->plain_mod ||
                 op1->cipher_mod != op2->cipher_mod ||
-                op1->g_plain != op2->g_plain ||
-                op1->g_cipher != op2->g_cipher
+                op1->psi_plain != op2->psi_plain ||
+                op1->psi_cipher != op2->psi_cipher
             )
             {
                 return false;
@@ -399,16 +379,16 @@ class crypto_handler
                 cipher* clone1 = op1->clone();
                 cipher* clone2 = op2->clone();
 
-                poly_handler::poly_mul_ntt(clone1->ciphertext[0], clone2->ciphertext[0], res->cipher_mod, res->g_cipher, res->ciphertext[0]);
+                poly_handler::poly_mul_ntt(clone1->ciphertext[0], clone2->ciphertext[0], res->cipher_mod, res->psi_cipher, res->ciphertext[0]);
                 poly_handler::poly_mod(res->ciphertext[0], res->cipher_mod, res->ciphertext[0]);
 
                 poly* temp = new poly(res->ring_dim);
-                poly_handler::poly_mul_ntt(clone1->ciphertext[0], clone2->ciphertext[1], res->cipher_mod, res->g_cipher, temp);
-                poly_handler::poly_mul_ntt(clone1->ciphertext[1], clone2->ciphertext[0], res->cipher_mod, res->g_cipher, res->ciphertext[1]);
+
+                poly_handler::poly_mul_ntt(clone1->ciphertext[0], clone2->ciphertext[1], res->cipher_mod, res->psi_cipher, temp);
+                poly_handler::poly_mul_ntt(clone1->ciphertext[1], clone2->ciphertext[0], res->cipher_mod, res->psi_cipher, res->ciphertext[1]);
                 poly_handler::poly_add(temp, res->ciphertext[1], res->ciphertext[1]);
                 poly_handler::poly_mod(res->ciphertext[1], res->cipher_mod, res->ciphertext[1]);
-
-                poly_handler::poly_mul_ntt(clone1->ciphertext[1], clone2->ciphertext[1], res->cipher_mod, res->g_cipher, res->ciphertext[2]);
+                poly_handler::poly_mul_ntt(clone1->ciphertext[1], clone2->ciphertext[1], res->cipher_mod, res->psi_cipher, res->ciphertext[2]);
                 poly_handler::poly_mod(res->ciphertext[2], res->cipher_mod, res->ciphertext[2]);
 
                 delete clone1;

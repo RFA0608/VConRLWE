@@ -14,19 +14,28 @@ int main()
     // Setting for Encryption
     // ============================================================================= //
     // set poly degree and plaintext modulus bits size
-    int poly_degree = (int)powl(2, 13);
-    int plain_bits = 40;
-    int cipher_bits = 210;
+    int poly_degree = (int)powl(2, 14);
+    int plain_bits = 42;
+    int cipher_bits = 256;
+    int group_bits = 3072;
 
     mpz_class plain_mod;
     prime_handler::find_ntt_prime(poly_degree, plain_bits, plain_mod);
-    mpz_class g_p;
-    prime_handler::find_primitive_root(plain_mod, g_p);
+    mpz_class psi_p;
+    prime_handler::find_ntt_root(poly_degree, plain_mod, psi_p);
 
     mpz_class cipher_mod;
     prime_handler::find_ntt_prime(poly_degree, cipher_bits, cipher_mod);
-    mpz_class g_c;
-    prime_handler::find_primitive_root(cipher_mod, g_c);
+    mpz_class psi_c;
+    prime_handler::find_ntt_root(poly_degree, cipher_mod, psi_c);
+
+    mpz_class group_mod, grout_gen;
+    prime_handler::find_schnorr_prime(cipher_mod, group_bits,  group_mod);
+    prime_handler::find_schnorr_gen(cipher_mod, group_mod, grout_gen);
+
+    cout << cipher_mod << endl << endl;
+    cout << group_mod << endl << endl;
+    cout << grout_gen << endl << endl;
 
     // ============================================================================= //
     // Test
@@ -39,7 +48,7 @@ int main()
     pod_matrix[4] = 11;
 
     poly* packed_data = new poly(poly_degree), * result_data = new poly(poly_degree);
-    batch_encoder::encode(pod_matrix, plain_mod, g_p, packed_data);
+    batch_encoder::encode(pod_matrix, plain_mod, psi_p, packed_data);
     
     poly* p1 = new poly(poly_degree);
     poly* p2 = new poly(poly_degree);
@@ -48,10 +57,10 @@ int main()
     poly_handler::plain_2_poly(packed_data, p1);
     poly_handler::plain_2_poly(packed_data, p2);
 
-    cipher* c1 = new cipher(p1->ring_dim, plain_mod, cipher_mod, g_p, g_c);
-    cipher* c2 = new cipher(p2->ring_dim, plain_mod, cipher_mod, g_p, g_c);
-    cipher* c3 = new cipher(p2->ring_dim, plain_mod, cipher_mod, g_p, g_c);
-    cipher* c4 = new cipher(p2->ring_dim, plain_mod, cipher_mod, g_p, g_c);
+    cipher* c1 = new cipher(p1->ring_dim, plain_mod, cipher_mod, psi_p, psi_c);
+    cipher* c2 = new cipher(p2->ring_dim, plain_mod, cipher_mod, psi_p, psi_c);
+    cipher* c3 = new cipher(p2->ring_dim, plain_mod, cipher_mod, psi_p, psi_c);
+    cipher* c4 = new cipher(p2->ring_dim, plain_mod, cipher_mod, psi_p, psi_c);
 
     poly* sk = new poly(poly_degree);
     random_handler::secret_key(sk);
@@ -71,7 +80,7 @@ int main()
     std::cout << "runtime: " << ms_double.count() << " ms" << std::endl;
     
     vector<int64_t> repod_matrix(poly_degree, 0LL);
-    batch_encoder::decode(result_data, plain_mod, g_p, repod_matrix);
+    batch_encoder::decode(result_data, plain_mod, psi_p, repod_matrix);
 
     for(int i = 0; i < 5; i++)
     {
