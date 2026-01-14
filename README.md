@@ -41,6 +41,5 @@ Push below command on your CMD(bash), respectively.
 3. 지수 연산 구현
 
 ## 할것
-3. VC 구현
-4. 공격 시나리오 설정
-
+1. VC 구현
+2. 공격 시나리오 설정
