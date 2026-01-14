@@ -1,3 +1,6 @@
+#ifndef RLWE_H
+#define RLWE_H
+
 #include <random>
 #include <ctime>
 
@@ -399,3 +402,5 @@ class crypto_handler
             }
         }
 };
+
+#endif

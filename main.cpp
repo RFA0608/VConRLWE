@@ -4,7 +4,9 @@
 #include <gmpxx.h>
 #include <chrono>
 
+#include "Struct.h"
 #include "RLWE.h"
+#include "Group.h"
 
 using namespace std;
 

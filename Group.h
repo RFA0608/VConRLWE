@@ -1,3 +1,6 @@
+#ifndef GROUP_H
+#define GROUP_H
+
 #include "Struct.h"
 
 class gvec
@@ -153,3 +156,5 @@ class group_handler
             }
         }
 };
+
+#endif

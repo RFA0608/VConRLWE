@@ -1,7 +1,12 @@
+#ifndef STRUCT_H
+#define STRUCT_H
+
 #include <vector>
 #include <iostream>
 #include <algorithm>
 #include <cmath>
+#include <chrono>
+#include <random>
 #include <gmpxx.h>
 
 class poly
@@ -768,3 +773,5 @@ class prime_handler
             return 0;
         }
 };
+
+#endif
