@@ -4,9 +4,9 @@
 #include <gmpxx.h>
 #include <chrono>
 
-#include "Struct.h"
-#include "RLWE.h"
-#include "Group.h"
+#include "./lib/Struct.h"
+#include "./lib/RLWE.h"
+#include "./lib/Group.h"
 
 using namespace std;
 
@@ -35,9 +35,10 @@ int main()
     prime_handler::find_schnorr_prime(cipher_mod, group_bits,  group_mod);
     prime_handler::find_schnorr_gen(cipher_mod, group_mod, grout_gen);
 
-    cout << cipher_mod << endl << endl;
-    cout << group_mod << endl << endl;
-    cout << grout_gen << endl << endl;
+    cout << "✅ Plaintext modulus: \n" << plain_mod << endl << endl;
+    cout << "✅ Ciphertext modulus: \n" << cipher_mod << endl << endl;
+    cout << "✅ Schnorr Group safety modulus: \n" << group_mod << endl << endl;
+    cout << "✅ Schnorr Group safety generator: \n" << grout_gen << endl << endl;
 
     // ============================================================================= //
     // Test
