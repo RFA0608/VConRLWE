@@ -146,10 +146,14 @@ int main()
 
     ctrl->zero_set();
 
+    cout << "✅ Nominal (encrypted) controller set done" << endl;
+
     // set arx coefficient with matrix representation from nominal one
     ctrl_mod->arx_coe_set(ctrl);
     ctrl_mod->temp = ctrl->temp->clone();
     ctrl_mod->zero_set();
+
+    cout << "✅ matrix represented encryption controller set done" << endl;
 
     // set maximum iter
     int iter = 3;
