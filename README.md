@@ -41,7 +41,7 @@ Push below command on your CMD(bash), respectively.
 3. 지수 연산 구현
 ### 260117
 1. 암호문의 행렬로의 재표현 구현
-2. 행렬-벡터 곱과 같은 형태의 제어기 구현(메모리 할당 100기가 넘을듯)
+2. 행렬-벡터 곱과 같은 형태의 제어기 구현(2^13 ring dimension이 67기가를 먹는디)
 
 ## 할것
 1. VC 구현
