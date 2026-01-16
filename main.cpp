@@ -81,7 +81,8 @@ int main()
     random_handler::secret_key(sk);
 
     // set controller on ciphertext space
-    arx* ctrl = new arx();
+    arx* ctrl = new arx(); // nominal arx controller
+    arx_mod* ctrl_mod = new arx_mod(); // using matrix represented cipher arx controller
 
     // set plant on plaintext(Real) space
     plant* plt = new plant(x_init);
@@ -145,8 +146,13 @@ int main()
 
     ctrl->zero_set();
 
+    // set arx coefficient with matrix representation from nominal one
+    ctrl_mod->arx_coe_set(ctrl);
+    ctrl_mod->temp = ctrl->temp->clone();
+    ctrl_mod->zero_set();
+
     // set maximum iter
-    int iter = 200;
+    int iter = 3;
 
     // set needs variable
     poly* plaintext = new poly(poly_degree);
@@ -172,10 +178,12 @@ int main()
 
         // get plant output and calculation control input
         plt->output();
-        ctrl->calc();
+            // ctrl->calc(); // moninal
+        ctrl_mod->calc(); //matrix represented coefficient
 
         // get control input
-        crypto_handler::decrypt(ctrl->calc_res, sk, plaintext);
+            // crypto_handler::decrypt(ctrl->calc_res, sk, plaintext); // moninal
+        crypto_handler::decrypt(ctrl_mod->calc_res, sk, plaintext); //matrix represented coefficient
         batch_encoder::decode(plaintext, plain_mod, psi_p, result_data);
         temp_u = result_data[0] + result_data[1];
 
@@ -194,7 +202,8 @@ int main()
 
         // plant state update and controller memory update
         plt->state_update(real_u);
-        ctrl->mem_update(plt_out, ctrl_in);
+            // ctrl->mem_update(plt_out, ctrl_in); //nominal
+        ctrl_mod->mem_update(plt_out, ctrl_in); //matrix represented coefficient
 
         // debug print
         end = std::chrono::high_resolution_clock::now();
@@ -205,6 +214,7 @@ int main()
     // memory free
     delete sk;
     delete ctrl;
+    delete ctrl_mod;
     delete plt;
     
     delete plaintext;

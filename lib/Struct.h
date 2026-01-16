@@ -9,6 +9,10 @@
 #include <random>
 #include <gmpxx.h>
 
+// ================================================================================ //
+//                                  Poly Structure                                  //
+// ================================================================================ //
+
 class poly
 {
     public:
@@ -35,32 +39,9 @@ class poly
     }
 };
 
-class seed_gen
-{
-    public:
-        static gmp_randstate_t& get_rand_state()
-        {
-            thread_local static struct randwrapper
-            {
-                gmp_randstate_t state;
-
-                randwrapper()
-                {
-                    gmp_randinit_default(state);
-            
-                    std::random_device rd;
-                    gmp_randseed_ui(state, rd());
-                }
-
-                ~randwrapper()
-                {
-                    gmp_randclear(state);
-                }
-            } wrapper;
-
-            return wrapper.state;
-        }
-};
+// ================================================================================ //
+//                                  Poly Handler                                    //
+// ================================================================================ //
 
 class poly_handler
 {
@@ -436,6 +417,157 @@ class poly_handler
         }
 };
 
+// ================================================================================ //
+//                                  Matrix Structure                                //
+// ================================================================================ //
+
+class matrix
+{
+    public:
+        std::vector<mpz_class> entry;
+        int row;
+        int col;
+
+    matrix(int row, int col):
+        row(row),
+        col(col)
+    {
+        this->entry.resize(row * col);
+    }
+
+    ~matrix()
+    {
+        this->entry.clear();
+    }
+
+    matrix* clone()
+    {
+        matrix* clone = new matrix(this->row, this->col);
+        clone->entry = this->entry;
+        
+        return clone;
+    }
+};
+
+// ================================================================================ //
+//                                  Matrix Handler                                  //
+// ================================================================================ //
+
+class matrix_handler
+{
+    public:
+        static int poly_2_negacyclic_matrix(poly* op, matrix* res)
+        {   
+            if((op->ring_dim != res->row) || (op->ring_dim != res->col))
+            {
+                return -1;
+            }
+            else
+            {
+                for(int j = 0; j < res->col; j++)
+                {
+                    for(int i = 0; i < j; i++)
+                    {
+                        res->entry[res->col * i + j] = -op->coeff[op->ring_dim - j + i];
+                    }
+                    for(int i = j; i < res->row; i++)
+                    {
+                        res->entry[res->col * i + j] =  op->coeff[i - j];
+                    }
+                }
+
+                return 0;
+            }
+        }
+
+        static int matrix_poly_mul(matrix* op1, poly* op2, poly* res)
+        {
+            if((op1->col != op2->ring_dim) || (op1->row != res->ring_dim))
+            {
+                return -1;
+            }
+            else
+            {
+                poly* clone = res->clone();
+
+                for(int i = 0; i < op1->row; i++)
+                {
+                    clone->coeff[i] = 0;
+                    for(int j = 0; j < op2->ring_dim; j++)
+                    {
+                        clone->coeff[i] += op1->entry[op1->col * i + j] * op2->coeff[j];
+                    }   
+                }
+
+                res->coeff = clone->coeff;
+
+                delete clone;
+                return 0;
+            }
+        }
+
+        static int poly_matrix_mul(poly* op1, matrix* op2, poly* res)
+        {
+            if((op1->ring_dim != op2->row) || (op2->col != res->ring_dim))
+            {
+                return -1;
+            }
+            else
+            {
+                poly* clone = res->clone();
+
+                for(int j = 0; j < op2->col; j++)
+                {
+                    clone->coeff[j] = 0;
+                    for(int i = 0; i < op1->ring_dim; i++)
+                    {
+                        clone->coeff[j] += op1->coeff[j] * op2->entry[j + op2->col * i];
+                    }
+                }
+
+                res->coeff = clone->coeff;
+
+                delete clone;
+                return 0;
+            }
+        }
+};
+
+// ================================================================================ //
+//                                  Seed Generator                                  //
+// ================================================================================ //
+
+class seed_gen
+{
+    public:
+        static gmp_randstate_t& get_rand_state()
+        {
+            thread_local static struct randwrapper
+            {
+                gmp_randstate_t state;
+
+                randwrapper()
+                {
+                    gmp_randinit_default(state);
+            
+                    std::random_device rd;
+                    gmp_randseed_ui(state, rd());
+                }
+
+                ~randwrapper()
+                {
+                    gmp_randclear(state);
+                }
+            } wrapper;
+
+            return wrapper.state;
+        }
+};
+
+// ================================================================================ //
+//                                  Batch Encoder                                   //
+// ================================================================================ //
+
 class batch_encoder
 {
     public:
@@ -510,6 +642,10 @@ class batch_encoder
             delete temp;
         }
 };
+
+// ================================================================================ //
+//                                  Prime Handler                                   //
+// ================================================================================ // 
 
 class prime_handler
 {

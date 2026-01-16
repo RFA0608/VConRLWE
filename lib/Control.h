@@ -4,6 +4,10 @@
 #include "Struct.h"
 #include "RLWE.h"
 
+// ================================================================================ //
+//                                      Plant                                       //
+// ================================================================================ //
+
 class plant
 {
     public:
@@ -43,8 +47,8 @@ class plant
             this->C.push_back(C_row_1);
             this->C.push_back(C_row_2);
 
-            this->x.resize(this->dim);
-            if(x_init.size() != this->dim)
+            this->x.resize(4);
+            if(x_init.size() != 4)
             {
                 for(int i = 0; i < 4; i++)
                 {
@@ -120,6 +124,10 @@ class plant
         }
 };
 
+// ================================================================================ //
+//                                  Encrypted Controller                            //
+// ================================================================================ //
+
 class arx
 {
     public:
@@ -131,7 +139,6 @@ class arx
         std::vector<cipher*> temp2;
         cipher* temp;
         cipher* calc_res;
-        int dim = 4;
 
         arx()
         {
@@ -211,22 +218,22 @@ class arx
 
         void zero_set()
         {
-            for(int i = 0; i < this->dim; i++)
+            for(int i = 0; i < 4; i++)
             {
                 this->mem_y[i] = this->temp->clone();
             }
 
-            for(int i = 0; i < this->dim; i++)
+            for(int i = 0; i < 4; i++)
             {
                 this->mem_u[i] = this->temp->clone();
             }
 
-            for(int i = 0; i < this->dim; i++)
+            for(int i = 0; i < 4; i++)
             {
                 this->temp1[i] = this->temp->clone();
             }
 
-            for(int i = 0; i < this->dim; i++)
+            for(int i = 0; i < 4; i++)
             {
                 this->temp2[i] = this->temp->clone();
             }
@@ -237,14 +244,14 @@ class arx
 
         void calc()
         {
-            for(int i = 0; i < this->dim; i++)
+            for(int i = 0; i < 4; i++)
             {
                 crypto_handler::eval_mul(this->P_y[i], this->mem_y[i], this->temp1[i]);
                 crypto_handler::eval_mul(this->Q_u[i], this->mem_u[i], this->temp2[i]);
             }
 
             crypto_handler::eval_add(this->temp1[0], this->temp2[0], this->calc_res);
-            for(int i = 1; i < this->dim; i++)
+            for(int i = 1; i < 4; i++)
             {
                 crypto_handler::eval_add(this->temp1[i], this->temp2[i], this->temp);
                 crypto_handler::eval_add(this->calc_res, this->temp, this->calc_res);
@@ -253,17 +260,176 @@ class arx
 
         void mem_update(cipher* new_y, cipher* new_u)
         {
-            for(int i = 0; i < this->dim-1; i++)
+            for(int i = 0; i < 3; i++)
             {
                 std::swap(this->mem_y[i], this->mem_y[i+1]);
                 std::swap(this->mem_u[i], this->mem_u[i+1]);
             }
-            this->mem_y[dim-1]->ciphertext[0]->coeff = new_y->ciphertext[0]->coeff;
-            this->mem_y[dim-1]->ciphertext[1]->coeff = new_y->ciphertext[1]->coeff;
-            this->mem_u[dim-1]->ciphertext[0]->coeff = new_u->ciphertext[0]->coeff;
-            this->mem_u[dim-1]->ciphertext[1]->coeff = new_u->ciphertext[1]->coeff;
+            this->mem_y[3]->ciphertext[0]->coeff = new_y->ciphertext[0]->coeff;
+            this->mem_y[3]->ciphertext[1]->coeff = new_y->ciphertext[1]->coeff;
+            this->mem_u[3]->ciphertext[0]->coeff = new_u->ciphertext[0]->coeff;
+            this->mem_u[3]->ciphertext[1]->coeff = new_u->ciphertext[1]->coeff;
         }
 };
 
+// ================================================================================ //
+//                        Verifiable Encrypted Controller                           //
+// ================================================================================ //
+
+class arx_mod
+{
+    public:
+        std::vector<mr_cipher*> P_y;
+        std::vector<mr_cipher*> Q_u;
+        std::vector<cipher*> mem_y;
+        std::vector<cipher*> mem_u;
+        std::vector<cipher*> temp1;
+        std::vector<cipher*> temp2;
+        cipher* temp;
+        cipher* calc_res;
+
+        arx_mod()
+        {
+            this->P_y.resize(4);
+            this->Q_u.resize(4);
+            this->mem_y.resize(4);
+            this->mem_u.resize(4);
+            this->temp1.resize(4);
+            this->temp2.resize(4);
+        }
+        
+        ~arx_mod()
+        {
+            for(auto& factor : this->P_y)
+            {
+                if(factor != nullptr)
+                {
+                    delete factor;
+                    factor = nullptr;
+                }
+            }
+            this->P_y.clear();
+
+            for(auto& factor : this->Q_u)
+            {
+                if(factor != nullptr)
+                {
+                    delete factor;
+                    factor = nullptr;
+                }
+            }
+            this->Q_u.clear();
+
+            for(auto& factor : this->mem_y)
+            {
+                if(factor != nullptr)
+                {
+                    delete factor;
+                    factor = nullptr;
+                }
+            }
+            this->mem_y.clear();
+
+            for(auto& factor : this->mem_u)
+            {
+                if(factor != nullptr)
+                {
+                    delete factor;
+                    factor = nullptr;
+                }
+            }
+            this->mem_u.clear();
+
+            for(auto& factor : this->temp1)
+            {
+                if(factor != nullptr)
+                {
+                    delete factor;
+                    factor = nullptr;
+                }
+            }
+            this->temp1.clear();
+
+            for(auto& factor : this->temp2)
+            {
+                if(factor != nullptr)
+                {
+                    delete factor;
+                    factor = nullptr;
+                }
+            }
+            this->temp2.clear();
+
+            delete this->temp;
+            delete this->calc_res;
+        }
+
+        void arx_coe_set(arx* nominal)
+        {
+            for(int i = 0; i < 4; i++)
+            {
+                mr_cipher* PQ = new mr_cipher(nominal->temp->ring_dim, nominal->temp->plain_mod, nominal->temp->cipher_mod);
+                this->P_y[i] = PQ;
+                this->Q_u[i] = PQ->clone();
+                crypto_handler::cipher_2_mr_cipher(nominal->P_y[i], this->P_y[i]);
+                crypto_handler::cipher_2_mr_cipher(nominal->Q_u[i], this->Q_u[i]);
+            }
+        }
+
+        void zero_set()
+        {
+            for(int i = 0; i < 4; i++)
+            {
+                this->mem_y[i] = this->temp->clone();
+            }
+
+            for(int i = 0; i < 4; i++)
+            {
+                this->mem_u[i] = this->temp->clone();
+            }
+
+            for(int i = 0; i < 4; i++)
+            {
+                this->temp1[i] = this->temp->clone();
+            }
+
+            for(int i = 0; i < 4; i++)
+            {
+                this->temp2[i] = this->temp->clone();
+            }
+
+
+            this->calc_res = this->temp->clone();
+        }
+
+        void calc()
+        {
+            for(int i = 0; i < 4; i++)
+            {
+                crypto_handler::eval_mr_mul(this->P_y[i], this->mem_y[i], this->temp1[i]);
+                crypto_handler::eval_mr_mul(this->Q_u[i], this->mem_u[i], this->temp2[i]);
+            }
+
+            crypto_handler::eval_add(this->temp1[0], this->temp2[0], this->calc_res);
+            for(int i = 1; i < 4; i++)
+            {
+                crypto_handler::eval_add(this->temp1[i], this->temp2[i], this->temp);
+                crypto_handler::eval_add(this->calc_res, this->temp, this->calc_res);
+            }
+        }
+
+        void mem_update(cipher* new_y, cipher* new_u)
+        {
+            for(int i = 0; i < 3; i++)
+            {
+                std::swap(this->mem_y[i], this->mem_y[i+1]);
+                std::swap(this->mem_u[i], this->mem_u[i+1]);
+            }
+            this->mem_y[3]->ciphertext[0]->coeff = new_y->ciphertext[0]->coeff;
+            this->mem_y[3]->ciphertext[1]->coeff = new_y->ciphertext[1]->coeff;
+            this->mem_u[3]->ciphertext[0]->coeff = new_u->ciphertext[0]->coeff;
+            this->mem_u[3]->ciphertext[1]->coeff = new_u->ciphertext[1]->coeff;
+        }
+};
 
 #endif

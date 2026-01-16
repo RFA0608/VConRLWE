@@ -6,6 +6,10 @@
 
 #include "Struct.h"
 
+// ================================================================================ //
+//                                  Cipher Structure                                //
+// ================================================================================ //
+
 class cipher
 {
     public:
@@ -16,8 +20,6 @@ class cipher
         mpz_class cipher_mod;
         mpz_class psi_plain;
         mpz_class psi_cipher;
-        // mpz_class g_plain;
-        // mpz_class g_cipher;
 
         cipher(int ring_dim, mpz_class plain_mod, mpz_class cipher_mod, mpz_class psi_p, mpz_class psi_c):
             ring_dim(ring_dim), 
@@ -56,6 +58,59 @@ class cipher
             return clone;
         }
 };
+
+// ================================================================================ //
+//                       Matrix Represented Cipher Structure                        //
+// ================================================================================ //
+
+class mr_cipher 
+{
+    public:
+        std::vector<matrix*> ciphertext;
+        int ring_dim;
+        int level = 0;
+        mpz_class plain_mod;
+        mpz_class cipher_mod;
+
+        mr_cipher(int ring_dim, mpz_class plain_mod, mpz_class cipher_mod):
+            ring_dim(ring_dim), 
+            plain_mod(plain_mod),
+            cipher_mod(cipher_mod)
+        {}
+
+        ~mr_cipher()
+        {
+            for(auto& factor : this->ciphertext)
+            {
+                if(factor != nullptr)
+                {
+                    delete factor;
+                    factor = nullptr;
+                }
+            }
+            this->ciphertext.clear();
+        }
+
+        mr_cipher* clone()
+        {
+            mr_cipher* clone = new mr_cipher(this->ring_dim, this->plain_mod, this->cipher_mod);
+            
+            clone->level = this->level;
+            for(auto& factor : this->ciphertext)
+            {
+                if(factor != nullptr)
+                {
+                    clone->ciphertext.push_back(factor->clone());
+                }
+            }
+
+            return clone;
+        }
+};
+
+// ================================================================================ //
+//                                  Random Handler                                  //
+// ================================================================================ //
 
 class random_handler
 {
@@ -112,6 +167,10 @@ class random_handler
             }
         }
 };
+
+// ================================================================================ //
+//                                  Crypto Handler                                  //
+// ================================================================================ //
 
 class crypto_handler
 {
@@ -283,7 +342,8 @@ class crypto_handler
                             }
                             case 2:
                             {
-                                res->ciphertext.erase(res->ciphertext.end() - 1);
+                                delete res->ciphertext.back();
+                                res->ciphertext.pop_back();
                                 res->level = 1;
                                 
                                 break;
@@ -421,6 +481,117 @@ class crypto_handler
                 delete clone2;
                 delete temp;
                 
+                return 0;
+            }
+        }
+
+        static int cipher_2_mr_cipher(cipher* op1, mr_cipher* res)
+        {
+            if((op1->ring_dim != res->ring_dim))
+            {
+                return -1;
+            }
+            else
+            {
+                if(op1->level != 1)
+                {
+                    return -1;
+                }
+                else
+                {
+                    switch(res->level)
+                    {
+                        case 0:
+                        {
+                            res->level = 1;
+                            matrix* L1 = new matrix(op1->ring_dim, op1->ring_dim);
+                            res->ciphertext.push_back(L1);
+                            matrix* L2 = new matrix(op1->ring_dim, op1->ring_dim);
+                            res->ciphertext.push_back(L2);
+                            break;
+                        }
+                        case 1:
+                        {
+                            break;
+                        }
+                        default:
+                        {
+                            return -1;
+                        }
+                    }
+
+                    for(int i = 0; i < 2; i++)
+                    {   
+                        matrix_handler::poly_2_negacyclic_matrix(op1->ciphertext[i], res->ciphertext[i]);
+                    }
+                    
+                    return 0;
+                }
+            }
+        }
+
+        static int eval_mr_mul(mr_cipher* op1, cipher* op2, cipher* res)
+        {
+            if((res->ring_dim != op1->ring_dim) || (res->ring_dim != op2->ring_dim))
+            {
+                return -1;
+            }
+            else if(op2->level != 1)
+            {
+                return -1;
+            }
+            else
+            {
+                switch (res->level)
+                {
+                    case 0:
+                    {
+                        res->level = 2;
+                        poly* L1 = new poly(res->ring_dim);
+                        res->ciphertext.push_back(L1);
+                        poly* L2 = new poly(res->ring_dim);
+                        res->ciphertext.push_back(L2);
+                        poly* L3 = new poly(res->ring_dim);
+                        res->ciphertext.push_back(L3);
+
+                        break;
+                    }
+                    case 1:
+                    {
+                        res->level = 2;
+                        poly* L3 = new poly(res->ring_dim);
+                        res->ciphertext.push_back(L3);
+
+                        break;
+                    }
+                    case 2:
+                    {
+                        break;
+                    }
+                    default:
+                    {
+                        return -1;
+                    }
+                }
+
+                mr_cipher* clone1 = op1->clone();
+                cipher* clone2 = op2->clone();
+                
+                matrix_handler::matrix_poly_mul(clone1->ciphertext[0], clone2->ciphertext[0], res->ciphertext[0]);
+                poly_handler::poly_mod(res->ciphertext[0], res->cipher_mod, res->ciphertext[0]);
+
+                poly* temp = new poly(res->ring_dim);
+                matrix_handler::matrix_poly_mul(clone1->ciphertext[1], clone2->ciphertext[0], res->ciphertext[1]);
+                matrix_handler::matrix_poly_mul(clone1->ciphertext[0], clone2->ciphertext[1], temp);
+                poly_handler::poly_add(res->ciphertext[1], temp, res->ciphertext[1]);
+                poly_handler::poly_mod(res->ciphertext[1], res->cipher_mod, res->ciphertext[1]);
+
+                matrix_handler::matrix_poly_mul(clone1->ciphertext[1], clone2->ciphertext[1], res->ciphertext[2]);
+                poly_handler::poly_mod(res->ciphertext[2], res->cipher_mod, res->ciphertext[2]);
+                
+                delete clone1;
+                delete clone2;
+                delete temp;
                 return 0;
             }
         }
