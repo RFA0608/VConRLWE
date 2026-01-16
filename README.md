@@ -19,7 +19,7 @@ Push below command on your CMD(bash), respectively.
   ./main
 ```
 
-# 3️⃣task(20260115-0703 updated)
+# 3️⃣task(20260117-0832 updated)
 ## 완료됨
 ### 260112
 1. 벡터, 행렬, 암호문 구조화
@@ -39,6 +39,9 @@ Push below command on your CMD(bash), respectively.
 1. ARX 제어기 연산 구현
 2. 암호문 재활용 방안 구현
 3. 지수 연산 구현
+### 260117
+1. 암호문의 행렬로의 재표현 구현
+2. 행렬-벡터 곱과 같은 형태의 제어기 구현
 
 ## 할것
 1. VC 구현
