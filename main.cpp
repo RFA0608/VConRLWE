@@ -48,7 +48,7 @@ int main()
     // Setting for Encryption
     // ============================================================================= //
     // set poly degree and plaintext modulus bits size
-    int poly_degree = (int)powl(2, 14);
+    int poly_degree = (int)powl(2, 10);
     int plain_bits = 42;
     int cipher_bits = 256;
     int group_bits = 3072;
@@ -156,7 +156,7 @@ int main()
     cout << "✅ matrix represented encryption controller set done" << endl;
 
     // set maximum iter
-    int iter = 3;
+    int iter = 200;
 
     // set needs variable
     poly* plaintext = new poly(poly_degree);
@@ -170,15 +170,17 @@ int main()
     cipher* plt_out = new cipher(plaintext->ring_dim, plain_mod, cipher_mod, psi_p, psi_c);
     cipher* ctrl_in = new cipher(plaintext->ring_dim, plain_mod, cipher_mod, psi_p, psi_c);
 
-    auto start = std::chrono::high_resolution_clock::now();
-    auto end = std::chrono::high_resolution_clock::now();
+    auto start = std::chrono::steady_clock::now();
+    auto end = std::chrono::steady_clock::now();
     std::chrono::duration<double, std::milli> ms_double = end - start;
+
+    cout << "✅ Iteration Start" << endl << endl;
 
     // iteration start
     for(int i = 0; i < iter; i++)
     {
         // iteration time check
-        start = std::chrono::high_resolution_clock::now();
+        start = std::chrono::steady_clock::now();
 
         // get plant output and calculation control input
         plt->output();
@@ -210,7 +212,7 @@ int main()
         ctrl_mod->mem_update(plt_out, ctrl_in); //matrix represented coefficient
 
         // debug print
-        end = std::chrono::high_resolution_clock::now();
+        end = std::chrono::steady_clock::now();
         ms_double = end - start;
         cout << "🔄️ iter : "<< i + 1 << " 🕒 : " << ms_double.count() <<"ms " << "🖥️ u: " << real_u[0] << " y: " << plt->y[0] << ", " << plt->y[1] << endl;
     }

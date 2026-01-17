@@ -7,6 +7,7 @@
 #include <cmath>
 #include <chrono>
 #include <random>
+#include <thread>
 #include <gmpxx.h>
 
 // ================================================================================ //
@@ -334,6 +335,7 @@ class poly_handler
             mpz_invert(n_inv.get_mpz_t(), n.get_mpz_t(), q.get_mpz_t());
 
             mpz_class psi_pow_inv = 1;
+
             for(int i = 0; i < op->ring_dim; i++)
             {
                 op->coeff[i] = (n_inv * ((op->coeff[i] * psi_pow_inv) % q)) % q;
@@ -354,6 +356,7 @@ class poly_handler
             mpz_invert(n_inv.get_mpz_t(), n.get_mpz_t(), q.get_mpz_t());
 
             mpz_class psi_pow_inv = 1;
+
             for(int i = 0; i < op->ring_dim; i++)
             {
                 op->coeff[i] = (n_inv * ((op->coeff[i] * psi_pow_inv) % q)) % q;
@@ -490,9 +493,14 @@ class matrix_handler
             {
                 poly* clone = res->clone();
 
-                for(int i = 0; i < op1->row; i++)
+                for(int i = 0; i < clone->ring_dim; i++)
                 {
                     clone->coeff[i] = 0;
+                }
+
+                // #pragma omp parallel for
+                for(int i = 0; i < op1->row; i++)
+                {
                     for(int j = 0; j < op2->ring_dim; j++)
                     {
                         clone->coeff[i] += op1->entry[op1->col * i + j] * op2->coeff[j];
@@ -516,9 +524,14 @@ class matrix_handler
             {
                 poly* clone = res->clone();
 
+                for(int i = 0; i < clone->ring_dim; i++)
+                {
+                    clone->coeff[i] = 0;
+                }
+
+                // #pragma omp parallel for
                 for(int j = 0; j < op2->col; j++)
                 {
-                    clone->coeff[j] = 0;
                     for(int i = 0; i < op1->ring_dim; i++)
                     {
                         clone->coeff[j] += op1->coeff[j] * op2->entry[j + op2->col * i];
