@@ -48,7 +48,7 @@ int main()
     // Setting for Encryption
     // ============================================================================= //
     // set poly degree and plaintext modulus bits size
-    int poly_degree = (int)powl(2, 10);
+    int poly_degree = (int)powl(2, 8);
     int plain_bits = 42;
     int cipher_bits = 256;
     int group_bits = 3072;
@@ -148,10 +148,10 @@ int main()
 
     cout << "✅ Nominal (encrypted) controller set done" << endl;
 
-    // set arx coefficient with matrix representation from nominal one
-    ctrl_mod->arx_coe_set(ctrl);
-    ctrl_mod->temp = ctrl->temp->clone();
-    ctrl_mod->zero_set();
+    // // set arx coefficient with matrix representation from nominal one
+    // ctrl_mod->arx_coe_set(ctrl);
+    // ctrl_mod->temp = ctrl->temp->clone();
+    // ctrl_mod->zero_set();
 
     cout << "✅ matrix represented encryption controller set done" << endl;
 
@@ -184,12 +184,12 @@ int main()
 
         // get plant output and calculation control input
         plt->output();
-            // ctrl->calc(); // moninal
-        ctrl_mod->calc(); //matrix represented coefficient
+        ctrl->calc(); // moninal
+            // ctrl_mod->calc(); //matrix represented coefficient
 
         // get control input
-            // crypto_handler::decrypt(ctrl->calc_res, sk, plaintext); // moninal
-        crypto_handler::decrypt(ctrl_mod->calc_res, sk, plaintext); //matrix represented coefficient
+        crypto_handler::decrypt(ctrl->calc_res, sk, plaintext); // moninal
+            // crypto_handler::decrypt(ctrl_mod->calc_res, sk, plaintext); //matrix represented coefficient
         batch_encoder::decode(plaintext, plain_mod, psi_p, result_data);
         temp_u = result_data[0] + result_data[1];
 
@@ -208,8 +208,8 @@ int main()
 
         // plant state update and controller memory update
         plt->state_update(real_u);
-            // ctrl->mem_update(plt_out, ctrl_in); //nominal
-        ctrl_mod->mem_update(plt_out, ctrl_in); //matrix represented coefficient
+        ctrl->mem_update(plt_out, ctrl_in); //nominal
+            // ctrl_mod->mem_update(plt_out, ctrl_in); //matrix represented coefficient
 
         // debug print
         end = std::chrono::steady_clock::now();
