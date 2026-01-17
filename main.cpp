@@ -48,7 +48,7 @@ int main()
     // Setting for Encryption
     // ============================================================================= //
     // set poly degree and plaintext modulus bits size
-    int poly_degree = (int)powl(2, 11);
+    int poly_degree = (int)powl(2, 14);
     int plain_bits = 42;
     int cipher_bits = 256;
     int group_bits = 3072;
@@ -169,9 +169,9 @@ int main()
     // set controller side value link to verifiable computation object
     start = std::chrono::steady_clock::now();
 
-    ek->arx_coe_set(ctrl);
+    // ek->arx_coe_set(ctrl);
     ek->link_memory(ctrl);
-    ek->set_ekf(r_0, r_1, s);
+    ek->set_ekf(ctrl, r_0, r_1, s);
 
     end = std::chrono::steady_clock::now();
     ms_double = end - start;
@@ -183,10 +183,10 @@ int main()
     end = std::chrono::steady_clock::now();
     ms_double = end - start;
 
-    cout << "✅ Verifiable computation set done | 🕒 " <<  ms_double.count() << "ms" << endl;
+    cout << "✅ Verifiable computation set done | 🕒 " <<  ms_double.count() << "ms" << endl << endl;
 
     // set maximum iter
-    int iter = 200;
+    int iter = 2;
 
     // set needs variable
     poly* plaintext = new poly(poly_degree);

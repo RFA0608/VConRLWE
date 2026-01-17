@@ -279,8 +279,10 @@ class arx
 class vc
 {
     public:
-        std::vector<mr_cipher*> P_y;
-        std::vector<mr_cipher*> Q_u;
+        // std::vector<mr_cipher*> P_y;
+        // std::vector<mr_cipher*> Q_u;
+        std::vector<cipher*> *P_y;
+        std::vector<cipher*> *Q_u;
         std::vector<cipher*> *mem_y;
         std::vector<cipher*> *mem_u;
 
@@ -308,33 +310,10 @@ class vc
         gvec* g_s_h_m_ro;
 
         vc()
-        {
-            this->P_y.resize(4);
-            this->Q_u.resize(4);
-        }
+        {}
         
         ~vc()
         {
-            for(auto& factor : this->P_y)
-            {
-                if(factor != nullptr)
-                {
-                    delete factor;
-                    factor = nullptr;
-                }
-            }
-            this->P_y.clear();
-
-            for(auto& factor : this->Q_u)
-            {
-                if(factor != nullptr)
-                {
-                    delete factor;
-                    factor = nullptr;
-                }
-            }
-            this->Q_u.clear();
-
             delete r0;
             delete r1;
             delete s;
@@ -358,25 +337,15 @@ class vc
             delete g_s_h_m_ro;
         }
 
-        void arx_coe_set(arx* ctrl)
-        {
-            for(int i = 0; i < 4; i++)
-            {
-                mr_cipher* PQ = new mr_cipher(ctrl->temp->ring_dim, ctrl->temp->plain_mod, ctrl->temp->cipher_mod);
-                this->P_y[i] = PQ;
-                this->Q_u[i] = PQ->clone();
-                crypto_handler::cipher_2_mr_cipher(ctrl->P_y[i], this->P_y[i]);
-                crypto_handler::cipher_2_mr_cipher(ctrl->Q_u[i], this->Q_u[i]);
-            }
-        }
-
         void link_memory(arx* ctrl)
         {
+            this->P_y = &ctrl->P_y;
+            this->Q_u = &ctrl->Q_u;
             this->mem_y = &ctrl->mem_y;
             this->mem_u = &ctrl->mem_u;
         }
 
-        void set_ekf(poly* r0, poly* r1, poly* s)
+        void set_ekf(arx* ctrl, poly* r0, poly* r1, poly* s)
         {
             this->r0 = r0;
             this->r1 = r1;
@@ -418,62 +387,79 @@ class vc
             poly_handler::poly_set_2_zero(this->s_h);
             for(int i = 0; i < 8; i++)
             {
-                for(int j = 0; j < N; j++)
+                if(i < 4)
                 {
-                    if(j < (N / 3))
+                    mr_cipher* PQ = new mr_cipher(ctrl->temp->ring_dim, ctrl->temp->plain_mod, ctrl->temp->cipher_mod);
+                    crypto_handler::cipher_2_mr_cipher(ctrl->P_y[i], PQ);
+
+                    for(int j = 0; j < N; j++)
                     {
-                        for(int k = 0; k < (N / 3); k++)
+                        if(j < (N / 3))
                         {
-                            if(i < 4)
+                            for(int k = 0; k < (N / 3); k++)
                             {
-                                this->s_h->coeff[N * i + j] += this->s->coeff[k] * this->P_y[i]->ciphertext[0]->entry[j + this->P_y[i]->ring_dim * k];
+                                this->s_h->coeff[N * i + j] += this->s->coeff[k] * PQ->ciphertext[0]->entry[j + PQ->ring_dim * k];
+
                             }
-                            else
+                            for(int k = (N / 3); k < 2 * (N / 3); k++)
                             {
-                                this->s_h->coeff[N * i + j] += this->s->coeff[k] * this->Q_u[i - 4]->ciphertext[0]->entry[j + this->Q_u[i - 4]->ring_dim * k];
+                                this->s_h->coeff[N * i + j] += this->s->coeff[k] * PQ->ciphertext[1]->entry[j + PQ->ring_dim * (k - (N / 3))];
                             }
-                            
                         }
-                        for(int k = (N / 3); k < 2 * (N / 3); k++)
+                        else if(j >= (N / 3) && j < 2 * (N / 3))
                         {
-                            if(i < 4)
+                            for(int k = (N / 3); k < 2 * (N / 3); k++)
                             {
-                                this->s_h->coeff[N * i + j] += this->s->coeff[k] * this->P_y[i]->ciphertext[1]->entry[j + this->P_y[i]->ring_dim * (k - (N / 3))];
+                                this->s_h->coeff[N * i + j] += this->s->coeff[k] * PQ->ciphertext[0]->entry[(j - (N / 3)) + PQ->ring_dim * (k - (N / 3))];
                             }
-                            else
+                        }
+                        else
+                        {
+                            for(int k = 2 * (N / 3); k < 3 * (N / 3); k++)
                             {
-                                this->s_h->coeff[N * i + j] += this->s->coeff[k] * this->Q_u[i - 4]->ciphertext[1]->entry[j + this->Q_u[i - 4]->ring_dim * (k - (N / 3))];
+                                this->s_h->coeff[N * i + j] += this->s->coeff[k] * PQ->ciphertext[1]->entry[(j - 2 * (N / 3)) + PQ->ring_dim * (k -  2 * (N / 3))];
                             }
                         }
                     }
-                    else if(j >= (N / 3) && j < 2 * (N / 3))
+
+                    delete PQ;
+                }
+                else
+                {
+                    mr_cipher* PQ = new mr_cipher(ctrl->temp->ring_dim, ctrl->temp->plain_mod, ctrl->temp->cipher_mod);
+                    crypto_handler::cipher_2_mr_cipher(ctrl->Q_u[i - 4], PQ);
+
+                    for(int j = 0; j < N; j++)
                     {
-                        for(int k = (N / 3); k < 2 * (N / 3); k++)
+                        if(j < (N / 3))
                         {
-                            if(i < 4)
+                            for(int k = 0; k < (N / 3); k++)
                             {
-                                this->s_h->coeff[N * i + j] += this->s->coeff[k] * this->P_y[i]->ciphertext[0]->entry[(j - (N / 3)) + this->P_y[i]->ring_dim * (k - (N / 3))];
+                                this->s_h->coeff[N * i + j] += this->s->coeff[k] * PQ->ciphertext[0]->entry[j + PQ->ring_dim * k];
+
                             }
-                            else
+                            for(int k = (N / 3); k < 2 * (N / 3); k++)
                             {
-                                this->s_h->coeff[N * i + j] += this->s->coeff[k] * this->Q_u[i - 4]->ciphertext[0]->entry[(j - (N / 3)) + this->Q_u[i - 4]->ring_dim * (k - (N / 3))];
+                                this->s_h->coeff[N * i + j] += this->s->coeff[k] * PQ->ciphertext[1]->entry[j + PQ->ring_dim * (k - (N / 3))];
+                            }
+                        }
+                        else if(j >= (N / 3) && j < 2 * (N / 3))
+                        {
+                            for(int k = (N / 3); k < 2 * (N / 3); k++)
+                            {
+                                this->s_h->coeff[N * i + j] += this->s->coeff[k] * PQ->ciphertext[0]->entry[(j - (N / 3)) + PQ->ring_dim * (k - (N / 3))];
+                            }
+                        }
+                        else
+                        {
+                            for(int k = 2 * (N / 3); k < 3 * (N / 3); k++)
+                            {
+                                this->s_h->coeff[N * i + j] += this->s->coeff[k] * PQ->ciphertext[1]->entry[(j - 2 * (N / 3)) + PQ->ring_dim * (k -  2 * (N / 3))];
                             }
                         }
                     }
-                    else
-                    {
-                        for(int k = 2 * (N / 3); k < 3 * (N / 3); k++)
-                        {
-                            if(i < 4)
-                            {
-                                this->s_h->coeff[N * i + j] += this->s->coeff[k] * this->P_y[i]->ciphertext[1]->entry[(j - 2 * (N / 3)) + this->P_y[i]->ring_dim * (k -  2 * (N / 3))];
-                            }
-                            else
-                            {
-                                this->s_h->coeff[N * i + j] += this->s->coeff[k] * this->Q_u[i - 4]->ciphertext[1]->entry[(j - 2 * (N / 3)) + this->Q_u[i - 4]->ring_dim * (k -  2 * (N / 3))];
-                            }
-                        }
-                    }
+
+                    delete PQ;
                 }
             }
             
@@ -489,26 +475,6 @@ class vc
             poly_handler::poly_add(this->ro_f, neg_rz, this->ro_f_m_rz);
             poly_handler::poly_add(this->s_h, neg_rz, this->s_h_m_ro);
             poly_handler::poly_add(this->s_h, neg_ro, this->s_h_m_rz);
-
-            for(auto& factor : this->P_y)
-            {
-                if(factor != nullptr)
-                {
-                    delete factor;
-                    factor = nullptr;
-                }
-            }
-            this->P_y.clear();
-
-            for(auto& factor : this->Q_u)
-            {
-                if(factor != nullptr)
-                {
-                    delete factor;
-                    factor = nullptr;
-                }
-            }
-            this->Q_u.clear();
 
             delete neg_rz;
             delete neg_ro;
