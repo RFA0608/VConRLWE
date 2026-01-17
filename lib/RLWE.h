@@ -154,6 +154,17 @@ class random_handler
             }
         }
 
+        static void not_zero_public_key(const mpz_class& mod, poly* pb)
+        {
+            mpz_class temp;
+
+            for(int i = 0; i < pb->ring_dim; i++)
+            {
+                sample_uni(mod - 1, seed_gen::get_rand_state(), temp);
+                pb->coeff[i] = temp + 1;
+            }
+        }
+
         static void errors(poly* err)
         {
             thread_local std::mt19937 gen(std::random_device{}());

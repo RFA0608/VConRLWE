@@ -47,6 +47,14 @@ class poly
 class poly_handler
 {
     public:
+        static void poly_set_2_zero(poly* op)
+        {
+            for(int i = 0; i < op->ring_dim; i++)
+            {
+                op->coeff[i] = 0;
+            }
+        }
+
         static int pack_2_plain(poly* op, poly* res)
         {
             if(op->ring_dim != res->ring_dim)
@@ -306,6 +314,7 @@ class poly_handler
         static void negacyclic_ntt(poly* op, const mpz_class& q, const mpz_class& psi)
         {
             mpz_class psi_pow = 1;
+
             for(int i = 0; i < op->ring_dim; i++)
             {
                 op->coeff[i] = (op->coeff[i] * psi_pow) % q;
@@ -467,6 +476,7 @@ class matrix_handler
             }
             else
             {
+                #pragma omp parallel for
                 for(int j = 0; j < res->col; j++)
                 {
                     for(int i = 0; i < j; i++)
@@ -498,7 +508,7 @@ class matrix_handler
                     clone->coeff[i] = 0;
                 }
 
-                // #pragma omp parallel for
+                #pragma omp parallel for
                 for(int i = 0; i < op1->row; i++)
                 {
                     for(int j = 0; j < op2->ring_dim; j++)
@@ -529,7 +539,7 @@ class matrix_handler
                     clone->coeff[i] = 0;
                 }
 
-                // #pragma omp parallel for
+                #pragma omp parallel for
                 for(int j = 0; j < op2->col; j++)
                 {
                     for(int i = 0; i < op1->ring_dim; i++)

@@ -52,6 +52,7 @@ class group_handler
             }
             else
             {
+                #pragma omp parallel for
                 for(int i = 0; i < res->size; i++)
                 {
                     
@@ -111,6 +112,7 @@ class group_handler
                 }
                 else
                 {
+                    #pragma omp parallel for
                     for(int i = 0; i < res->size; i++)
                     {
                         mpz_powm(res->vec[i].get_mpz_t(), res->g_gen.get_mpz_t(), op2->coeff[i].get_mpz_t(), res->g_mod.get_mpz_t());

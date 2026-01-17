@@ -48,7 +48,7 @@ int main()
     // Setting for Encryption
     // ============================================================================= //
     // set poly degree and plaintext modulus bits size
-    int poly_degree = (int)powl(2, 8);
+    int poly_degree = (int)powl(2, 11);
     int plain_bits = 42;
     int cipher_bits = 256;
     int group_bits = 3072;
@@ -63,31 +63,46 @@ int main()
     mpz_class psi_c;
     prime_handler::find_ntt_root(poly_degree, cipher_mod, psi_c);
 
-    mpz_class group_mod, grout_gen;
+    mpz_class group_mod, group_gen;
     prime_handler::find_schnorr_prime(cipher_mod, group_bits,  group_mod);
-    prime_handler::find_schnorr_gen(cipher_mod, group_mod, grout_gen);
+    prime_handler::find_schnorr_gen(cipher_mod, group_mod, group_gen);
 
-    cout << "✅ Plaintext modulus: \n" << plain_mod << endl << endl;
-    cout << "✅ Ciphertext modulus: \n" << cipher_mod << endl << endl;
-    cout << "✅ Schnorr Group safety modulus: \n" << group_mod << endl << endl;
-    cout << "✅ Schnorr Group safety generator: \n" << grout_gen << endl << endl;
+    cout << "ℹ️ Plaintext modulus: \n" << plain_mod << endl << endl;
+    cout << "ℹ️ Ciphertext modulus: \n" << cipher_mod << endl << endl;
+    cout << "ℹ️ Schnorr Group safety modulus: \n" << group_mod << endl << endl;
+    cout << "ℹ️ Schnorr Group safety generator: \n" << group_gen << endl << endl;
 
     // ============================================================================= //
     // Test(iter)
     // ============================================================================= //
 
+    // time trip set
+    auto start = std::chrono::steady_clock::now();
+    auto end = std::chrono::steady_clock::now();
+    std::chrono::duration<double, std::milli> ms_double = end - start;
+
     // set cipher secret key
     poly* sk = new poly(poly_degree);
     random_handler::secret_key(sk);
 
+    // set verifiable key 
+    poly* r_0 = new poly(24 * poly_degree);
+    random_handler::not_zero_public_key(cipher_mod, r_0);
+    poly* r_1 = new poly(24 * poly_degree);
+    random_handler::not_zero_public_key(cipher_mod, r_1);
+    poly* s = new poly(3 * poly_degree);
+    random_handler::not_zero_public_key(cipher_mod, s);
+    
     // set controller on ciphertext space
-    arx* ctrl = new arx(); // nominal arx controller
-    arx_mod* ctrl_mod = new arx_mod(); // using matrix represented cipher arx controller
+    arx* ctrl = new arx();
+    vc* ek = new vc();
 
     // set plant on plaintext(Real) space
     plant* plt = new plant(x_init);
 
     // set cipher initializer
+    start = std::chrono::steady_clock::now();
+
     vector<int64_t> pod_matrix(poly_degree, 0LL);
     for(int i = 0; i < 4; i++)
     {
@@ -146,14 +161,29 @@ int main()
 
     ctrl->zero_set();
 
-    cout << "✅ Nominal (encrypted) controller set done" << endl;
+    end = std::chrono::steady_clock::now();
+    ms_double = end - start;
 
-    // // set arx coefficient with matrix representation from nominal one
-    // ctrl_mod->arx_coe_set(ctrl);
-    // ctrl_mod->temp = ctrl->temp->clone();
-    // ctrl_mod->zero_set();
+    cout << "✅ Nominal (encrypted) controller set done | 🕒 " <<  ms_double.count() << "ms" << endl;
 
-    cout << "✅ matrix represented encryption controller set done" << endl;
+    // set controller side value link to verifiable computation object
+    start = std::chrono::steady_clock::now();
+
+    ek->arx_coe_set(ctrl);
+    ek->link_memory(ctrl);
+    ek->set_ekf(r_0, r_1, s);
+
+    end = std::chrono::steady_clock::now();
+    ms_double = end - start;
+
+    cout << "EKF gen-time | 🕒 " <<  ms_double.count() << "ms" << endl;
+
+    ek->up_2_g(group_mod, group_gen);
+
+    end = std::chrono::steady_clock::now();
+    ms_double = end - start;
+
+    cout << "✅ Verifiable computation set done | 🕒 " <<  ms_double.count() << "ms" << endl;
 
     // set maximum iter
     int iter = 200;
@@ -170,11 +200,8 @@ int main()
     cipher* plt_out = new cipher(plaintext->ring_dim, plain_mod, cipher_mod, psi_p, psi_c);
     cipher* ctrl_in = new cipher(plaintext->ring_dim, plain_mod, cipher_mod, psi_p, psi_c);
 
-    auto start = std::chrono::steady_clock::now();
-    auto end = std::chrono::steady_clock::now();
-    std::chrono::duration<double, std::milli> ms_double = end - start;
 
-    cout << "✅ Iteration Start" << endl << endl;
+    cout << "ℹ️ Iteration Start" << endl;
 
     // iteration start
     for(int i = 0; i < iter; i++)
@@ -184,12 +211,10 @@ int main()
 
         // get plant output and calculation control input
         plt->output();
-        ctrl->calc(); // moninal
-            // ctrl_mod->calc(); //matrix represented coefficient
+        ctrl->calc();
 
         // get control input
-        crypto_handler::decrypt(ctrl->calc_res, sk, plaintext); // moninal
-            // crypto_handler::decrypt(ctrl_mod->calc_res, sk, plaintext); //matrix represented coefficient
+        crypto_handler::decrypt(ctrl->calc_res, sk, plaintext);
         batch_encoder::decode(plaintext, plain_mod, psi_p, result_data);
         temp_u = result_data[0] + result_data[1];
 
@@ -208,8 +233,7 @@ int main()
 
         // plant state update and controller memory update
         plt->state_update(real_u);
-        ctrl->mem_update(plt_out, ctrl_in); //nominal
-            // ctrl_mod->mem_update(plt_out, ctrl_in); //matrix represented coefficient
+        ctrl->mem_update(plt_out, ctrl_in);
 
         // debug print
         end = std::chrono::steady_clock::now();
@@ -220,7 +244,7 @@ int main()
     // memory free
     delete sk;
     delete ctrl;
-    delete ctrl_mod;
+    delete ek;
     delete plt;
     
     delete plaintext;
