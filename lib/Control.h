@@ -279,8 +279,6 @@ class arx
 class vc
 {
     public:
-        // std::vector<mr_cipher*> P_y;
-        // std::vector<mr_cipher*> Q_u;
         std::vector<cipher*> *P_y;
         std::vector<cipher*> *Q_u;
         std::vector<cipher*> *mem_y;
