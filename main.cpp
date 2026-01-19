@@ -49,7 +49,7 @@ int main()
     //                               Setting for Encrypt                                //
     // ================================================================================ //
     // set poly degree and plaintext modulus bits size
-    int poly_degree = (int)powl(2, 14);
+    int poly_degree = (int)powl(2, 12);
     int plain_bits = 42;
     int cipher_bits = 256;
     int group_bits = 3072;

@@ -140,29 +140,24 @@ class group_handler
             }
         }
 
-        static int group_dot(gvec* op1, gvec* op2, mpz_class& res)
+        static int group_dot(gvec* op1, poly* op2, mpz_class& res)
         {
-            if(op1->size != op2->size)
+            if(op1->size != op2->ring_dim)
             {
                 return -1;
             }
             else
             {
-                if(op1->g_mod != op2->g_mod)
+                mpz_class temp;
+                res = 1;
+
+                for(int i = 0; i < op1->size; i++)
                 {
-                    return -1;
+                    mpz_powm(temp.get_mpz_t(), op1->g_gen.get_mpz_t(), op2->coeff[i].get_mpz_t(), op1->g_mod.get_mpz_t());
+                    res *= temp % op1->g_mod;
                 }
-                else
-                {
-                    res = 1;
 
-                    for(int i = 0; i < op1->size; i++)
-                    {
-                        res = (res + (op1->vec[i] * op2->vec[i]) % op1->g_mod) % op1->g_mod;
-                    }
-
-                    return 0;
-                }   
+                return 0;
             }
         }
 };
