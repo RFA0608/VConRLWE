@@ -46,5 +46,8 @@ Push below command on your CMD(bash), respectively.
 4. EKF를 뽑을때 일시적으로 메모리 생성후 삭제 메커니즘으로 속도가 하향되었지만 사용 가능할 수준으로 변경(2^14 ring dimension 기준 EKF를 위한 rF, sH 등의 형태 만드는데 2.51e+03s, group 위로 올리는데 0.12e+03s 걸림)
 
 ## 할것
-1. VC 구현
-2. 공격 시나리오 설정
+1. 행렬표현의 암호문에 대한 벡터표현 암호문 만들기
+2. Group 위로 올려야하는 것 정리
+3. Group 위에서 하는 연산 정리
+4. Group 검증 테스트
+5. 공격 시나리오 설정
