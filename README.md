@@ -51,3 +51,7 @@ Push below command on your CMD(bash), respectively.
 3. Group 위에서 하는 연산 정리
 4. Group 검증 테스트
 5. 공격 시나리오 설정
+
+**먼저 할것**
+1. 암호키를 {-1, 0, 1}에서 유니폼하게 뽑는거로 변경
+2. 에러 분포를 이산분포 시그마는 3.2로 고정해서 뽑는거로 변경
