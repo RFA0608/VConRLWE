@@ -109,6 +109,126 @@ class mr_cipher
 };
 
 // ================================================================================ //
+//                       Vector Represented Cipher Structure                        //
+// ================================================================================ //
+
+class vr_cipher 
+{
+    public:
+        poly* ciphertext;
+        int ring_dim;
+        mpz_class plain_mod;
+        mpz_class cipher_mod;
+
+        vr_cipher(int ring_dim, mpz_class plain_mod, mpz_class cipher_mod):
+            ring_dim(ring_dim), 
+            plain_mod(plain_mod),
+            cipher_mod(cipher_mod)
+        {
+            this->ciphertext = new poly(3 * ring_dim);
+        }
+
+        ~vr_cipher()
+        {
+            delete ciphertext;
+        }
+
+        vr_cipher* clone()
+        {
+            vr_cipher* clone = new vr_cipher(this->ring_dim, this->plain_mod, this->cipher_mod);
+            *clone->ciphertext = *this->ciphertext;
+
+            return clone;
+        }
+};
+
+// ================================================================================ //
+//                              Format Transform Handler                            //
+// ================================================================================ //
+
+class format_transform_handler
+{
+    static int cipher_2_mr_cipher(cipher* op1, mr_cipher* res)
+    {
+        if((op1->ring_dim != res->ring_dim))
+        {
+            return -1;
+        }
+        else
+        {
+            if(op1->level != 1)
+            {
+                return -1;
+            }
+            else
+            {
+                switch(res->level)
+                {
+                    case 0:
+                    {
+                        res->level = 1;
+                        matrix* L1 = new matrix(op1->ring_dim, op1->ring_dim);
+                        res->ciphertext.push_back(L1);
+                        matrix* L2 = new matrix(op1->ring_dim, op1->ring_dim);
+                        res->ciphertext.push_back(L2);
+                        break;
+                    }
+                    case 1:
+                    {
+                        break;
+                    }
+                    default:
+                    {
+                        return -1;
+                    }
+                }
+
+                for(int i = 0; i < 2; i++)
+                {   
+                    matrix_handler::poly_2_negacyclic_matrix(op1->ciphertext[i], res->ciphertext[i]);
+                }
+                
+                return 0;
+            }
+        }
+    }
+
+    static int cipher_2_vr_cipher(cipher* op, vr_cipher* res)
+    {
+        if(op->level != 1)
+        {
+            return -1;
+        }
+        else
+        {
+            if(op->ring_dim != res->ring_dim)
+            {
+                return -1;
+            }
+            else
+            {
+                for(int i = 0; i < res->ring_dim; i++)
+                {
+                    if(i < res->ring_dim)
+                    {
+                        res->ciphertext[i] = op->ciphertext[0][i];
+                    }
+                    else if(i >= res->ring_dim && i < 2 * res->ring_dim)
+                    {
+                        res->ciphertext[i] = op->ciphertext[1][i - res->ring_dim];
+                    }
+                    else
+                    {
+                        res->ciphertext[i] = op->ciphertext[1][i - 2 * res->ring_dim];
+                    }
+                }
+                return 0;
+            }
+        }
+    }      
+};
+
+// ================================================================================ //
 //                                  Random Handler                                  //
 // ================================================================================ //
 
@@ -118,11 +238,29 @@ class random_handler
         static void sample_cbd(std::mt19937& gen, mpz_class& res)
         {
             std::uniform_int_distribution<int> dist(0, 1);
+            int k = 21; 
 
-            int a = dist(gen) + dist(gen);
-            int b = dist(gen) + dist(gen);
+            auto sum = [&]()
+            {
+                int rand_num = 0;
+                for(int i = 0; i < k; i++)
+                {
+                    rand_num += dist(gen);
+                }
+                return rand_num;
+            };
+
+            int a = sum();
+            int b = sum();
 
             res = a - b;
+        }
+
+        static void sample_ternary(std::mt19937& gen, mpz_class& res)
+        {
+            std::uniform_int_distribution<int> dist(-1, 1);
+
+            res = dist(gen);
         }
 
         static void sample_uni(const mpz_class& mod, gmp_randstate_t& state, mpz_class& res)
@@ -138,7 +276,7 @@ class random_handler
 
             for(int i = 0; i < sk->ring_dim; i++)
             {
-                sample_cbd(gen, temp);
+                sample_ternary(gen, temp);
                 sk->coeff[i] = temp;
             }
         }
@@ -493,51 +631,6 @@ class crypto_handler
                 delete temp;
                 
                 return 0;
-            }
-        }
-
-        static int cipher_2_mr_cipher(cipher* op1, mr_cipher* res)
-        {
-            if((op1->ring_dim != res->ring_dim))
-            {
-                return -1;
-            }
-            else
-            {
-                if(op1->level != 1)
-                {
-                    return -1;
-                }
-                else
-                {
-                    switch(res->level)
-                    {
-                        case 0:
-                        {
-                            res->level = 1;
-                            matrix* L1 = new matrix(op1->ring_dim, op1->ring_dim);
-                            res->ciphertext.push_back(L1);
-                            matrix* L2 = new matrix(op1->ring_dim, op1->ring_dim);
-                            res->ciphertext.push_back(L2);
-                            break;
-                        }
-                        case 1:
-                        {
-                            break;
-                        }
-                        default:
-                        {
-                            return -1;
-                        }
-                    }
-
-                    for(int i = 0; i < 2; i++)
-                    {   
-                        matrix_handler::poly_2_negacyclic_matrix(op1->ciphertext[i], res->ciphertext[i]);
-                    }
-                    
-                    return 0;
-                }
             }
         }
 
