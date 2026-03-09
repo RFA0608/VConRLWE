@@ -49,6 +49,9 @@ Push below command on your CMD(bash), respectively.
 2. 에러 분포 CBD의 표준편차를 3.24근처의 것으로 변경(k=21 centralized binomial distribution)
 3. 행렬표현의 암호문에 대한 벡터표현 암호문 만들기
 
+### 260309
+1. RLWE.h의 mr_cipher와 vr_cipher의 클래스 내부 변경과 eval_mvr_mul 함수 재조정
+
 ## 할것
 1. Group 위로 올려야하는 것 정리
 2. Group 위에서 하는 연산 정리
