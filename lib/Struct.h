@@ -31,6 +31,14 @@ class poly
         this->coeff.clear();
     }
 
+    void fill_zero()
+    {
+        for(int i = 0; i < ring_dim; i++)
+        {
+            this->coeff[i] = 0;
+        }
+    }
+
     poly* clone()
     {
         poly* clone = new poly(this->ring_dim);
@@ -450,6 +458,14 @@ class matrix
     ~matrix()
     {
         this->entry.clear();
+    }
+
+    void fill_zero()
+    {
+        for(int i = 0; i < row * col; i++)
+        {
+            this->entry[i] = 0;
+        }
     }
 
     matrix* clone()
