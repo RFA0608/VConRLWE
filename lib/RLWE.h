@@ -111,9 +111,7 @@ class vr_cipher
             ring_dim(ring_dim), 
             plain_mod(plain_mod),
             cipher_mod(cipher_mod)
-        {
-            this->ciphertext = new poly(3 * ring_dim);
-        }
+        {}
 
         ~vr_cipher()
         {
@@ -137,97 +135,167 @@ class vr_cipher
 
 class format_transform_handler
 {
-    static int level_scaler(cipher* res, int level)
-    {
-        if(level != 1 || level !=2)
+    public:
+        static int level_scaler(cipher* res, int level)
         {
-            return -1;
-        }
-        else
-        {
-            switch(res->level)
+            if(level < 0 || level > 2)
             {
-                case 0:
+                return -1;
+            }
+            else
+            {
+                switch(res->level)
                 {
-                    if(level == 1)
+                    case 0:
                     {
-                        res->level = 1;
-                        poly* L1 = new poly(res->ring_dim);
-                        poly* L2 = new poly(res->ring_dim);
-                        res->ciphertext.push_back(L1);
-                        res->ciphertext.push_back(L2);
-                    }
-                    else if(level == 2)
-                    {
-                        res->level = 2;
-                        poly* L1 = new poly(res->ring_dim);
-                        poly* L2 = new poly(res->ring_dim);
-                        poly* L3 = new poly(res->ring_dim);
-                        res->ciphertext.push_back(L1);
-                        res->ciphertext.push_back(L2);
-                        res->ciphertext.push_back(L3);
-                    else
-                    {
-                        return -1;
-                    }
-                    break;
-                }
-                case 1:
-                {
-                    if(level == 1)
-                    {
-                        //nothing
-                    }
-                    else if(level == 2)
-                    {
-                        res->level = 2;
-                        poly* L1 = new poly(res->ring_dim);
-                        res->ciphertext.push_back(L1);
-                    }
-                    else
-                    {
-                        return -1;
-                    }
-                    break;
-                }
-                case 2:
-                {
-                    if(level == 1)
-                    {
-                        if(res->ciphertext[2] != nullptr)
+                        if(level == 1)
                         {
-                            delete res->ciphertext[2];
-                            res->ciphertext[2] = nullptr;
+                            res->level = 1;
+                            poly* L1 = new poly(res->ring_dim);
+                            poly* L2 = new poly(res->ring_dim);
+                            res->ciphertext.push_back(L1);
+                            res->ciphertext.push_back(L2);
                         }
-                        res->level = 1;
+                        else if(level == 2)
+                        {
+                            res->level = 2;
+                            poly* L1 = new poly(res->ring_dim);
+                            poly* L2 = new poly(res->ring_dim);
+                            poly* L3 = new poly(res->ring_dim);
+                            res->ciphertext.push_back(L1);
+                            res->ciphertext.push_back(L2);
+                            res->ciphertext.push_back(L3);
+                        }
+                        else
+                        {
+                            return -1;
+                        }
+                        break;
                     }
-                    else if(level == 2)
+                    case 1:
                     {
-                        //nothing
+                        if(level == 1)
+                        {
+                            //nothing
+                        }
+                        else if(level == 2)
+                        {
+                            res->level = 2;
+                            poly* L1 = new poly(res->ring_dim);
+                            res->ciphertext.push_back(L1);
+                        }
+                        else
+                        {
+                            return -1;
+                        }
+                        break;
                     }
-                    else
+                    case 2:
+                    {
+                        if(level == 1)
+                        {
+                            if(res->ciphertext[2] != nullptr)
+                            {
+                                delete res->ciphertext[2];
+                                res->ciphertext[2] = nullptr;
+                            }
+                            res->level = 1;
+                        }
+                        else if(level == 2)
+                        {
+                            //nothing
+                        }
+                        else
+                        {
+                            return -1;
+                        }
+                        break;
+                    }
+                    default:
                     {
                         return -1;
                     }
-                    break;
                 }
-                default:
+
+                return 0;
+            }
+        }
+
+        static int cipher_2_mr_cipher(cipher* op, mr_cipher* res)
+        {
+            if((op->ring_dim != res->ring_dim))
+            {
+                return -1;
+            }
+            else
+            {
+                if(op->level != 1)
                 {
                     return -1;
                 }
+                else
+                {
+                    switch(res->level)
+                    {
+                        case 0:
+                        {
+                            res->level = 1;
+                            matrix* L = new matrix(3 * op->ring_dim, 3 * op->ring_dim);
+                            res->ciphertext = L;
+                            L->fill_zero();
+                            break;
+                        }
+                        case 1:
+                        {
+                            break;
+                        }
+                        default:
+                        {
+                            return -1;
+                        }
+                    }
+
+                    matrix* L1 = new matrix(op->ring_dim, op->ring_dim);
+                    matrix* L2 = new matrix(op->ring_dim, op->ring_dim);
+
+                    matrix_handler::poly_2_negacyclic_matrix(op->ciphertext[0], L1);
+                    matrix_handler::poly_2_negacyclic_matrix(op->ciphertext[1], L2);
+
+                    for(int i = 0; i < 4; i++)
+                    {
+                        for(int j = 0; j < op->ring_dim; j++)
+                        {
+                            for(int k = 0; k < op->ring_dim; k++)
+                            {
+                                if(i == 0)
+                                {
+                                    res->ciphertext->entry[3 * op->ring_dim * j + k] = L1->entry[op->ring_dim * j + k];
+                                }
+                                else if(i == 1)
+                                {
+                                    res->ciphertext->entry[3 * op->ring_dim * (j + op->ring_dim) + k] = L2->entry[op->ring_dim * j + k]; 
+                                }
+                                else if(i == 2)
+                                {
+                                    res->ciphertext->entry[3 * op->ring_dim * (j + op->ring_dim) + (k + op->ring_dim)] = L1->entry[op->ring_dim * j + k]; 
+                                }
+                                else
+                                {
+                                    res->ciphertext->entry[3 * op->ring_dim * (j + 2 * op->ring_dim) + (k + 2 * op->ring_dim)] = L2->entry[op->ring_dim * j + k]; 
+                                }
+                            }
+                        }
+                    }
+                    
+                    delete L1;
+                    delete L2;
+
+                    return 0;
+                }
             }
-
-            return 0;
         }
-    }
 
-    static int cipher_2_mr_cipher(cipher* op, mr_cipher* res)
-    {
-        if((op->ring_dim != res->ring_dim))
-        {
-            return -1;
-        }
-        else
+        static int cipher_2_vr_cipher(cipher* op, vr_cipher* res)
         {
             if(op->level != 1)
             {
@@ -235,164 +303,96 @@ class format_transform_handler
             }
             else
             {
-                switch(res->level)
+                if(op->ring_dim != res->ring_dim)
                 {
-                    case 0:
-                    {
-                        res->level = 1;
-                        matrix* L = new matrix(3 * op->ring_dim, 3 * op->ring_dim);
-                        res->ciphertext = L;
-                        L->fill_zero();
-                        break;
-                    }
-                    case 1:
-                    {
-                        break;
-                    }
-                    default:
-                    {
-                        return -1;
-                    }
-                }
-
-                matrix* L1 = new matrix(op->ring_dim, op->ring_dim);
-                matrix* L2 = new matrix(op->ring_dim, op->ring_dim);
-
-                matrix_handler::poly_2_negacyclic_matrix(op->ciphertext[0], L1);
-                matrix_handler::poly_2_negacyclic_matrix(op->ciphertext[1], L2);
-
-                for(int i = 0; i < 4; i++)
-                {
-                    for(int j = 0; j < op->ring_dim; j++)
-                    {
-                        for(int k = 0; k < op->ring_dim; k++)
-                        {
-                            if(i == 0)
-                            {
-                                res->ciphertext[3 * op->ring_dim * j + k] = L1[op->ring_dim * j + k];
-                            }
-                            else if(i == 1)
-                            {
-                                res->ciphertext[3 * op->ring_dim * (j + op->ring_dim) + k] = L2[op->ring_dim * j + k]; 
-                            }
-                            else if(i == 2)
-                            {
-                                res->ciphertext[3 * op->ring_dim * (j + op->ring_dim) + (k + op->ring_dim)] = L1[op->ring_dim * j + k]; 
-                            }
-                            else
-                            {
-                                res->ciphertext[3 * op->ring_dim * (j + 2 * op->ring_dim) + (k + 2 * op->ring_dim)] = L2[op->ring_dim * j + k]; 
-                            }
-                        }
-                    }
-                }
-                
-                delete L1;
-                delete L2;
-
-                return 0;
-            }
-        }
-    }
-
-    static int cipher_2_vr_cipher(cipher* op, vr_cipher* res)
-    {
-        if(op->level != 1)
-        {
-            return -1;
-        }
-        else
-        {
-            if(op->ring_dim != res->ring_dim)
-            {
-                return -1;
-            }
-            else
-            {
-                switch(res->level)
-                {
-                    case 0:
-                    {
-                        res->level = 1;
-                        poly* L= new poly(3 * op1->ring_dim);
-                        res->ciphertext = L;
-                        break;
-                    }
-                    case 1:
-                    {
-                        break;
-                    }
-                    default:
-                    {
-                        return -1;
-                    }
-                }
-
-                for(int i = 0; i < 3; i++)
-                {
-                    for(int j = 0; j < op->ring_diml j++)
-                    {
-                        if(i == 0)
-                        {
-                            res->ciphertext[op->ring_dim * i + j] = op->ciphertext[0][j]
-                        }
-                        else if(i == 1)
-                        {
-                            res->ciphertext[op->ring_dim * i + j] = op->ciphertext[1][j]
-                        }
-                        else
-                        {
-                            res->ciphertext[op->ring_dim * i + j] = op->ciphertext[1][j]
-                        }
-                    }
-                }
-
-                return 0;
-            }
-        }
-    }      
-
-    static int vr_cipher_2_cipher(vr_cipher* op, cipher* res)
-    {
-        if(op->level != 2)
-        {
-            return -1;
-        }
-        else
-        {
-            if(op->ring_dim != res->ring_dim)
-            {
-                return -1;
-            }
-            else
-            {
-                if(res->level != 2)
-                {
-                    format_transforme_handler::level_scaler(res, 2);
-                    
-                    for(int i = 0; i < 3; i++)
-                    {
-                        for(int j = 0; j < res->ring_dim; j++)
-                        {
-                            res->ciphertext[i] = op->ciphertext[op->ring_dim * i + j];
-                        }
-                    }
+                    return -1;
                 }
                 else
                 {
-                    for(int i = 0; i < 3; i++)
+                    switch(res->level)
                     {
-                        for(int j = 0; j < res->ring_dim; j++)
+                        case 0:
                         {
-                            res->ciphertext[i] = op->ciphertext[op->ring_dim * i + j];
+                            res->level = 1;
+                            poly* L= new poly(3 * op->ring_dim);
+                            res->ciphertext = L;
+                            break;
+                        }
+                        case 1:
+                        {
+                            break;
+                        }
+                        default:
+                        {
+                            return -1;
                         }
                     }
-                }
 
-                return 0;
+                    for(int i = 0; i < 3; i++)
+                    {
+                        for(int j = 0; j < op->ring_dim; j++)
+                        {
+                            if(i == 0)
+                            {
+                                res->ciphertext->coeff[op->ring_dim * i + j] = op->ciphertext[0]->coeff[j];
+                            }
+                            else if(i == 1)
+                            {
+                                res->ciphertext->coeff[op->ring_dim * i + j] = op->ciphertext[1]->coeff[j];
+                            }
+                            else
+                            {
+                                res->ciphertext->coeff[op->ring_dim * i + j] = op->ciphertext[1]->coeff[j];
+                            }
+                        }
+                    }
+
+                    return 0;
+                }
+            }
+        }      
+
+        static int vr_cipher_2_cipher(vr_cipher* op, cipher* res)
+        {
+            if(op->level != 2)
+            {
+                return -1;
+            }
+            else
+            {
+                if(op->ring_dim != res->ring_dim)
+                {
+                    return -1;
+                }
+                else
+                {
+                    if(res->level != 2)
+                    {
+                        format_transform_handler::level_scaler(res, 2);
+                        
+                        for(int i = 0; i < 3; i++)
+                        {
+                            for(int j = 0; j < res->ring_dim; j++)
+                            {
+                                res->ciphertext[i]->coeff[j] = op->ciphertext->coeff[op->ring_dim * i + j];
+                            }
+                        }
+                    }
+                    else
+                    {
+                        for(int i = 0; i < 3; i++)
+                        {
+                            for(int j = 0; j < res->ring_dim; j++)
+                            {
+                                res->ciphertext[i]->coeff[j] = op->ciphertext->coeff[op->ring_dim * i + j];
+                            }
+                        }
+                    }
+
+                    return 0;
+                }
             }
         }
-    }
 }; 
 
 // ================================================================================ //
@@ -844,21 +844,9 @@ class crypto_handler
                 matrix_handler::matrix_poly_mul(clone1->ciphertext, clone2->ciphertext, res->ciphertext);
                 poly_handler::poly_mod(res->ciphertext, res->cipher_mod, res->ciphertext);
                 
-                // matrix_handler::matrix_poly_mul(clone1->ciphertext[0], clone2->ciphertext[0], res->ciphertext[0]);
-                // poly_handler::poly_mod(res->ciphertext[0], res->cipher_mod, res->ciphertext[0]);
-
-                // poly* temp = new poly(res->ring_dim);
-                // matrix_handler::matrix_poly_mul(clone1->ciphertext[1], clone2->ciphertext[0], res->ciphertext[1]);
-                // matrix_handler::matrix_poly_mul(clone1->ciphertext[0], clone2->ciphertext[1], temp);
-                // poly_handler::poly_add(res->ciphertext[1], temp, res->ciphertext[1]);
-                // poly_handler::poly_mod(res->ciphertext[1], res->cipher_mod, res->ciphertext[1]);
-
-                // matrix_handler::matrix_poly_mul(clone1->ciphertext[1], clone2->ciphertext[1], res->ciphertext[2]);
-                // poly_handler::poly_mod(res->ciphertext[2], res->cipher_mod, res->ciphertext[2]);
-                
                 delete clone1;
                 delete clone2;
-                // delete temp;
+                
                 return 0;
             }
         }
