@@ -118,7 +118,7 @@ class group_handler
 
         static int group_mul(gvec* op1, gvec* op2, gvec* res)
         {
-            if((res->size != op1->size) || (res->size != op2->size))
+            if(!group_handler::eval_meta_eq(op1, res) || !group_handler::eval_meta_eq(op2, res))
             {
                 return -1;
             }
