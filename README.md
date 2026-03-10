@@ -54,6 +54,7 @@ Push below command on your CMD(bash), respectively.
 
 ### 260310
 1. RLWE.h의 mr_cipher 및 vr_cipher의 함수 핸들러 재조정과 테스트(클래스 정리 1 -> 조정된 핸들러 테스트)
+2. Group.h의 함수 핸들러 정리
 
 ## 할것
 1. Control.h 를 정리
