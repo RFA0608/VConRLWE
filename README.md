@@ -56,10 +56,11 @@ Push below command on your CMD(bash), respectively.
 1. RLWE.h의 mr_cipher 및 vr_cipher의 함수 핸들러 재조정과 테스트(클래스 정리 1 -> 조정된 핸들러 테스트)
 
 ## 할것
-1. Group 위로 올려야하는 것 정리
-2. Group 위에서 하는 연산 정리
-3. Group 검증 테스트
-4. 공격 시나리오 설정
+1. Control.h 를 정리
+2. Group 위로 올려야하는 것 정리
+3. Group 위에서 하는 연산 정리
+4. Group 검증 테스트
+5. 공격 시나리오 설정
 
 ### 먼저 할것
 1. 이거 class가 너무 난잡하게 많아져서 이거 정리좀 해야겠는데?
