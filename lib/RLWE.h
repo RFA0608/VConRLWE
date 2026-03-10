@@ -88,7 +88,7 @@ class mr_cipher
             mr_cipher* clone = new mr_cipher(this->ring_dim, this->plain_mod, this->cipher_mod);
             
             clone->level = this->level;
-            clone->ciphertext = this->ciphertext;
+            clone->ciphertext = this->ciphertext->clone();
 
             return clone;
         }
@@ -123,7 +123,7 @@ class vr_cipher
             vr_cipher* clone = new vr_cipher(this->ring_dim, this->plain_mod, this->cipher_mod);
 
             clone->level = this->level;
-            clone->ciphertext = this->ciphertext;
+            clone->ciphertext = this->ciphertext->clone();
 
             return clone;
         }
@@ -354,7 +354,7 @@ class format_transform_handler
 
         static int vr_cipher_2_cipher(vr_cipher* op, cipher* res)
         {
-            if(op->level != 2)
+            if(op->level != 1 && op->level != 2)
             {
                 return -1;
             }
@@ -366,26 +366,13 @@ class format_transform_handler
                 }
                 else
                 {
-                    if(res->level != 2)
+                    format_transform_handler::level_scaler(res, op->level);
+
+                    for(int i = 0; i < (res->level + 1); i++)
                     {
-                        format_transform_handler::level_scaler(res, 2);
-                        
-                        for(int i = 0; i < 3; i++)
+                        for(int j = 0; j < res->ring_dim; j++)
                         {
-                            for(int j = 0; j < res->ring_dim; j++)
-                            {
-                                res->ciphertext[i]->coeff[j] = op->ciphertext->coeff[op->ring_dim * i + j];
-                            }
-                        }
-                    }
-                    else
-                    {
-                        for(int i = 0; i < 3; i++)
-                        {
-                            for(int j = 0; j < res->ring_dim; j++)
-                            {
-                                res->ciphertext[i]->coeff[j] = op->ciphertext->coeff[op->ring_dim * i + j];
-                            }
+                            res->ciphertext[i]->coeff[j] = op->ciphertext->coeff[op->ring_dim * i + j];
                         }
                     }
 
@@ -846,7 +833,7 @@ class crypto_handler
                 
                 delete clone1;
                 delete clone2;
-                
+
                 return 0;
             }
         }
