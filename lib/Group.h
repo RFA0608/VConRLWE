@@ -98,28 +98,21 @@ class group_handler
             }
         }
 
-        static int group_exp(gvec* op1, poly* op2, gvec* res)
+        static int group_exp(poly* op, gvec* res)
         {
-            if((res->size != op1->size) || (res->size != op2->ring_dim))
+            if(res->size != op->ring_dim)
             {
                 return -1;
             }
             else
             {
-                if(!eval_meta_eq(op1, res))
+                #pragma omp parallel for
+                for(int i = 0; i < res->size; i++)
                 {
-                    return -1;
+                    mpz_powm(res->vec[i].get_mpz_t(), res->g_gen.get_mpz_t(), op->coeff[i].get_mpz_t(), res->g_mod.get_mpz_t());
                 }
-                else
-                {
-                    #pragma omp parallel for
-                    for(int i = 0; i < res->size; i++)
-                    {
-                        mpz_powm(res->vec[i].get_mpz_t(), res->g_gen.get_mpz_t(), op2->coeff[i].get_mpz_t(), res->g_mod.get_mpz_t());
-                    }
 
-                    return 0;
-                }
+                return 0;
             }
         }
 
