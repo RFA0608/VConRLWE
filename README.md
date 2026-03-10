@@ -50,10 +50,10 @@ Push below command on your CMD(bash), respectively.
 3. 행렬표현의 암호문에 대한 벡터표현 암호문 만들기
 
 ### 260309
-1. RLWE.h의 mr_cipher와 vr_cipher의 클래스 내부 변경과 eval_mvr_mul 함수 재조정
+1. RLWE.h의 mr_cipher와 vr_cipher의 클래스 내부 변경과 eval_mvr_mul 함수 재조정(클래스 정리 1)
 
 ### 260310
-1. RLWE.h의 mr_cipher 및 vr_cipher의 함수 핸들러 재조정과 테스트
+1. RLWE.h의 mr_cipher 및 vr_cipher의 함수 핸들러 재조정과 테스트(클래스 정리 1 -> 조정된 핸들러 테스트)
 
 ## 할것
 1. Group 위로 올려야하는 것 정리
