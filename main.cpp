@@ -12,7 +12,7 @@
 using namespace std;
 
 // ==================== Hyper Parameter ==================== //
-const int poly_degree = (int)powl(2, 6);
+const int poly_degree = (int)powl(2, 14);
 const int plain_bits = 42;
 const int cipher_bits = 256;
 const int group_bits = 3072;
@@ -66,6 +66,13 @@ int main()
 
 
 
+    // // ==================== On group structure ==================== //
+    // gvec* gociphertext = new gvec(vrciphertext->ring_dim, group_mod, group_gen);
+    // group_handler::poly_2_gvec(vrciphertext->ciphertext, gociphertext);
+    // // ============================================================ //
+
+
+
     // ======================== De-flag ======================= //
     cipher* re_cipher = new cipher(poly_degree, plain_mod, cipher_mod, psi_p, psi_c);
     format_transform_handler::vr_cipher_2_cipher(res_vrciphertext, re_cipher);
@@ -84,7 +91,23 @@ int main()
     // ======================================================== //
 
     cout << res_matrix[0] << endl;
+
+    delete packed_data;
+    delete plaintext;
+    delete ciphertext;
+    delete sk;
+
+    delete vrciphertext;
+    delete mrciphertext;
+    delete res_vrciphertext;
+
+    // delete gociphertext;
     
+    delete re_cipher;
+
+    delete res_plain;
+    delete res_pack;
+
     return 0;
 }
 
