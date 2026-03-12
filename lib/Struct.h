@@ -63,6 +63,28 @@ class poly_handler
             }
         }
 
+        static int poly_concat(poly* op1, poly* op2, poly* res)
+        {
+            if(res->ring_dim != (op1->ring_dim + op2->ring_dim))
+            {
+                return -1;
+            }
+            else
+            {
+                for(int i = 0; i < op1->ring_dim; i++)
+                {
+                    res->coeff[i] = op1->coeff[i];
+                }  
+
+                for(int i = op1->ring_dim; i < res->ring_dim; i++)
+                {
+                    res->coeff[i] = op1->coeff[i - op1->ring_dim];
+                }
+
+                return 0;
+            }
+        }
+
         static int pack_2_plain(poly* op, poly* res)
         {
             if(op->ring_dim != res->ring_dim)
