@@ -60,6 +60,10 @@ Push below command on your CMD(bash), respectively.
 1. RLWE.h mr_cipher 및 vr_chiper 크기 변경과 그에 대한 함수 변경
 2. poly handler에 concat 추가
 
+### 260313
+1. Authenic.h 클래스 추가(완성 아님)
+2. 검증 프로세스 재확인
+
 ## 할것
 1. Control.h 를 정리
 2. Group 위로 올려야하는 것 정리
