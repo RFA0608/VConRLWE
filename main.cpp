@@ -7,12 +7,13 @@
 #include "./lib/Struct.h"
 #include "./lib/RLWE.h"
 #include "./lib/Group.h"
+#include "./lib/Authentic.h"
 // #include "./lib/Control.h"
 
 using namespace std;
 
 // ==================== Hyper Parameter ==================== //
-const int poly_degree = (int)powl(2, 12);
+const int poly_degree = (int)powl(2, 9);
 const int plain_bits = 42;
 const int cipher_bits = 256;
 const int group_bits = 3072;
@@ -83,6 +84,12 @@ int main()
 
 
 
+    // ==================== Authenticator test ==================== //
+    authentic* auth = new authentic(poly_degree, cipher_mod, group_mod, group_gen);
+    // ============================================================ //
+
+
+
     // ======================== Decrypt ======================= //
     poly* res_plain = new poly(poly_degree);
     poly* res_pack = new poly(poly_degree);
@@ -104,7 +111,10 @@ int main()
     delete mrciphertext;
     delete res_vrciphertext;
 
+    delete concat_vrciphertext;
     delete gociphertext;
+
+    delete auth;
     
     delete re_cipher;
 
