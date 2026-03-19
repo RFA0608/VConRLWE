@@ -141,13 +141,19 @@ class group_handler
             }
             else
             {
-                mpz_class temp;
+                std::vector<mpz_class> temp(op1->size);
                 res = 1;
+
+                #pragma omp parallel for
+                for(int i = 0; i < op1->size; i++)
+                {
+                    mpz_powm(temp[i].get_mpz_t(), op1->g_gen.get_mpz_t(), op2->coeff[i].get_mpz_t(), op1->g_mod.get_mpz_t());
+                }
 
                 for(int i = 0; i < op1->size; i++)
                 {
-                    mpz_powm(temp.get_mpz_t(), op1->g_gen.get_mpz_t(), op2->coeff[i].get_mpz_t(), op1->g_mod.get_mpz_t());
-                    res *= temp % op1->g_mod;
+                    res *= temp[i];
+                    res %= op1->g_mod;
                 }
 
                 return 0;

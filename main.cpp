@@ -13,7 +13,7 @@
 using namespace std;
 
 // ==================== Hyper Parameter ==================== //
-const int poly_degree = (int)powl(2, 14);
+const int poly_degree = (int)powl(2, 8);
 const int plain_bits = 42;
 const int cipher_bits = 256;
 const int group_bits = 3072;
