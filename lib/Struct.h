@@ -170,6 +170,23 @@ class poly_handler
             }
         }
 
+        static int poly_scal_mul_p(poly* op1, poly* op2, poly* res)
+        {
+            if((op2->ring_dim != res->ring_dim) || (op1->ring_dim != 1))
+            {
+                return -1;
+            }
+            else
+            {
+                for(int i = 0; i < res->ring_dim; i++)
+                {
+                    res->coeff[i] = op1->coeff[0] * op2->coeff[i];
+                }
+
+                return 0;
+            }
+        }
+
         static int poly_mul(poly* op1, poly* op2, poly* res)
         {
             if((op1->ring_dim != res->ring_dim) || (op2->ring_dim != res->ring_dim))
