@@ -75,9 +75,7 @@ class authentic
         }
 
         void make_ekf()
-        [
-            
-        ]
+        {}
 };
 
 #endif
