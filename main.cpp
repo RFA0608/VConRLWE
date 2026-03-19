@@ -13,7 +13,7 @@
 using namespace std;
 
 // ==================== Hyper Parameter ==================== //
-const int poly_degree = (int)powl(2, 8);
+const int poly_degree = (int)powl(2, 11);
 const int plain_bits = 42;
 const int cipher_bits = 256;
 const int group_bits = 3072;
@@ -37,7 +37,10 @@ int main()
     prime_handler::find_schnorr_gen(cipher_mod, group_mod, group_gen);
     // ======================================================== //
 
-
+    // cout << plain_mod << endl;
+    // cout << cipher_mod << endl;
+    // cout << group_mod << endl;
+    // cout << group_gen << endl;
 
     // ====================== Encryption ====================== //
     vector<int64_t> pod_matrix(poly_degree, 2LL);
@@ -84,12 +87,18 @@ int main()
 
 
 
+    auto stc = chrono::high_resolution_clock::now();
+
     // ==================== Authenticator test ==================== //
     authentic* auth = new authentic(poly_degree, cipher_mod, group_mod, group_gen);
     auth->make_ekf();
     // ============================================================ //
 
-
+    auto edc = chrono::high_resolution_clock::now();
+    auto duration = chrono::duration_cast<chrono::nanoseconds>(edc - stc);
+    duration = chrono::duration_cast<chrono::nanoseconds>(edc - stc);
+    double run_time = duration.count() / 1000000;
+    cout << "run time: " << run_time << "ms" << endl;
 
     // ======================== Decrypt ======================= //
     poly* res_plain = new poly(poly_degree);
