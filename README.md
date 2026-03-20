@@ -75,9 +75,6 @@ Push below command on your CMD(bash), respectively.
 2. H행렬의 암호화 + g위로 올릴때 필요한 함수 추가 (recur_concat, poly_mr_cipher_mult 같은)
 
 ## 할것
-1. H행렬 가져와서 암호화 한 값 넣기
-2. Control.h 를 정리
-3. Group 위로 올려야하는 것 정리
-4. Group 위에서 하는 연산 정리
-5. Group 검증 테스트
-6. 공격 시나리오 설정
+1. VC 구현
+2. 제어기 구현
+3. 공격 시나리오 검증
