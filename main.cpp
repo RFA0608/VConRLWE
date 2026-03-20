@@ -13,10 +13,13 @@
 using namespace std;
 
 // ==================== Hyper Parameter ==================== //
-const int poly_degree = (int)powl(2, 11);
+const int poly_degree = (int)powl(2, 6);
 const int plain_bits = 42;
 const int cipher_bits = 256;
 const int group_bits = 3072;
+
+const double r_scale = 0.0001;
+const double s_scale = 0.001;
 // ========================================================= //
 
 int main()
@@ -41,6 +44,34 @@ int main()
     // cout << cipher_mod << endl;
     // cout << group_mod << endl;
     // cout << group_gen << endl;
+
+    // ================= Control (ARX) matrix ================== //
+    // Original(real number field) ARX matrix representation
+    vector<double> P1({-0.3844, 6.5970}); // H*(F-R*H)^3*G
+    vector<double> P2({1.9504, -32.9119}); // H*(F-R*H)^2*G
+    vector<double> P3({-2.8663, 50.1128}); // H*(F-R*H)^1*G
+    vector<double> P4({1.3015, -23.9663}); // H*(F-R*H)^0*G
+    vector<double> Q1({-0.0945}); // H*(F-R*H)^3*R
+    vector<double> Q2({0.5509}); // H*(F-R*H)^2*R
+    vector<double> Q3({-1.3776}); // H*(F-R*H)^1*R
+    vector<double> Q4({1.9065}); // H*(F-R*H)^0*R
+
+    // Change to integer field
+    vector<int64_t> P1i(2); P1i[0] = (int64_t)(P1[0] / s_scale); P1i[1] = (int64_t)(P1[1] / s_scale);
+    vector<int64_t> P2i(2); P2i[0] = (int64_t)(P2[0] / s_scale); P2i[1] = (int64_t)(P2[1] / s_scale);
+    vector<int64_t> P3i(2); P3i[0] = (int64_t)(P3[0] / s_scale); P3i[1] = (int64_t)(P3[1] / s_scale);
+    vector<int64_t> P4i(2); P4i[0] = (int64_t)(P4[0] / s_scale); P4i[1] = (int64_t)(P4[1] / s_scale);
+    vector<int64_t> Q1i(1); Q1i[0] = (int64_t)(Q1[0] / s_scale);
+    vector<int64_t> Q2i(1); Q2i[0] = (int64_t)(Q2[0] / s_scale);
+    vector<int64_t> Q3i(1); Q3i[0] = (int64_t)(Q3[0] / s_scale);
+    vector<int64_t> Q4i(1); Q4i[0] = (int64_t)(Q4[0] / s_scale);
+
+    // Integer matrix
+    vector<vector<int64_t>> P({P1i, P2i, P3i, P4i}); 
+    vector<vector<int64_t>> Q({Q1i, Q2i, Q3i, Q4i}); 
+    // ========================================================= //
+
+
 
     // ====================== Encryption ====================== //
     vector<int64_t> pod_matrix(poly_degree, 2LL);
@@ -91,7 +122,10 @@ int main()
 
     // ==================== Authenticator test ==================== //
     authentic* auth = new authentic(poly_degree, cipher_mod, group_mod, group_gen);
-    auth->make_ekf();
+    cipher* temp = new cipher(poly_degree, plain_mod, cipher_mod, psi_p, psi_c);
+    vector<mr_cipher*> encH;
+    encH = auth->make_encH(temp, sk, P, Q);
+    auth->make_ekf(encH);
     // ============================================================ //
 
     auto edc = chrono::high_resolution_clock::now();
@@ -125,6 +159,16 @@ int main()
     delete gociphertext;
 
     delete auth;
+    delete temp;
+    for(auto& factor : encH)
+    {
+        if(factor != nullptr)
+        {
+            delete factor;
+            factor = nullptr;
+        }
+    }
+    encH.clear();
     
     delete re_cipher;
 

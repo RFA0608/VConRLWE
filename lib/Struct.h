@@ -84,6 +84,29 @@ class poly_handler
                 return 0;
             }
         }
+        
+        static poly* poly_recur_concat(std::vector<poly*> op)
+        {
+            int size = 0;
+            for(int i = 0; i < op.size(); i++)
+            {
+                size += op[i]->ring_dim;
+            }
+            
+            poly* res = new poly(size);
+            int stack = 0;
+
+            for(int i = 0; i < op.size(); i++)
+            {
+                for(int j = 0; j < op[i]->ring_dim; j++)
+                {
+                    res->coeff[j + stack] = op[i]->coeff[j];
+                }
+                stack += op[i]->ring_dim;
+            }
+
+            return res;
+        }
 
         static int pack_2_plain(poly* op, poly* res)
         {
@@ -523,6 +546,62 @@ class matrix
 class matrix_handler
 {
     public:
+        static int matrix_vertical_concat(matrix* op1, matrix* op2, matrix* res)
+        {  
+            if((op1->col != res->col) || (op2->col != res->col) || (op1->row + op2->row != res->row))
+            {
+                return -1;
+            }
+            else
+            {   
+                for(int i = 0; i < op1->row; i++)
+                {
+                    for(int j = 0; j < op1->col; j++)
+                    {
+                        res->entry[i + res->col * j] = op1->entry[i + op1->col * j];
+                    }
+                }
+
+                for(int i = 0; i < op2->row; i++)
+                {
+                    for(int j = 0; j < op2->col; j++)
+                    {
+                        res->entry[i + res->col * j + op1->row * op1->col] = op2->entry[i + op1->col * j];
+                    }
+                }
+
+                return 0;
+            }
+        }
+
+        static int matrix_horizon_concat(matrix* op1, matrix* op2, matrix* res)
+        {
+            if((op1->row != res->row) || (op2->row != res->row) || (op1->col + op2->col != res->col))
+            {
+                return -1;
+            }
+            else
+            {   
+                for(int i = 0; i < op1->row; i++)
+                {
+                    for(int j = 0; j < op1->col; j++)
+                    {
+                        res->entry[i + res->col * j] = op1->entry[i + op1->col * j];
+                    }
+                }
+
+                for(int i = 0; i < op2->row; i++)
+                {
+                    for(int j = 0; j < op2->col; j++)
+                    {
+                        res->entry[i + res->col * j + op1->col] = op2->entry[i + op1->col * j];
+                    }
+                }
+
+                return 0;
+            }
+        }
+
         static int poly_2_negacyclic_matrix(poly* op, matrix* res)
         {   
             if((op->ring_dim != res->row) || (op->ring_dim != res->col))

@@ -127,7 +127,48 @@ class authentic
             this->key.clear();
         }
 
-        void make_ekf()
+        std::vector<mr_cipher*> make_encH(cipher* temp, poly* sk, std::vector<std::vector<int64_t>>& P, std::vector<std::vector<int64_t>>& Q)
+        {
+            std::vector<mr_cipher*> mr_represent(8);
+            std::vector<int64_t> pod_matrix(temp->ring_dim, 0LL);
+            poly* packed_data = new poly(temp->ring_dim);
+            poly* plaintext = new poly(temp->ring_dim);
+
+            for(int i = 0; i < 8; i++)
+            {
+                if(i < 4)
+                {
+                    pod_matrix[0] = P[i][0];
+                    pod_matrix[1] = P[i][1];
+
+                    batch_encoder::encode(pod_matrix, temp->plain_mod, temp->psi_plain, packed_data);
+                    poly_handler::pack_2_plain(packed_data, plaintext);
+                    crypto_handler::encrypt(plaintext, sk, temp);
+                    
+                    mr_represent[i] = new mr_cipher(temp->ring_dim, temp->plain_mod, temp->cipher_mod);
+                    format_transform_handler::cipher_2_mr_cipher(temp, mr_represent[i]);
+                }
+                else
+                {
+                    pod_matrix[0] = Q[i - 4][0];
+                    pod_matrix[1] = 0;
+
+                    batch_encoder::encode(pod_matrix, temp->plain_mod, temp->psi_plain, packed_data);
+                    poly_handler::pack_2_plain(packed_data, plaintext);
+                    crypto_handler::encrypt(plaintext, sk, temp);
+
+                    mr_represent[i] = new mr_cipher(temp->ring_dim, temp->plain_mod, temp->cipher_mod);
+                    format_transform_handler::cipher_2_mr_cipher(temp, mr_represent[i]);
+                }
+            }
+
+            delete packed_data;
+            delete plaintext;
+
+            return mr_represent;
+        }
+
+        void make_ekf(std::vector<mr_cipher*> H_enc_mat)
         {
             // ciphertext whole size(N size message part and N size random key part, respectivley)
             int step_size = 2 * this->poly_degree;
@@ -163,16 +204,16 @@ class authentic
                     temp_alpha_0_r_0_F_r_1_m->coeff[i] = this->r_0->coeff[i - step_size];
                 }
             }
-            poly* temp_r_1_m = new poly(this->r_1->ring_dim);
-            poly_handler::poly_neg(this->r_1, temp_r_1_m);
-            poly_handler::poly_add(temp_alpha_0_r_0_F_r_1_m, temp_r_1_m, temp_alpha_0_r_0_F_r_1_m);
+            poly* temp_r_1_m1 = new poly(this->r_1->ring_dim);
+            poly_handler::poly_neg(this->r_1, temp_r_1_m1);
+            poly_handler::poly_add(temp_alpha_0_r_0_F_r_1_m, temp_r_1_m1, temp_alpha_0_r_0_F_r_1_m);
             poly_handler::poly_scal_mul_p(this->alpha_0, temp_alpha_0_r_0_F_r_1_m, temp_alpha_0_r_0_F_r_1_m);
             gvec* alpha_0_r_0_F_r_1_m = new gvec(this->r_0->ring_dim, this->g_mod, this->g_gen);
             group_handler::poly_2_gvec(temp_alpha_0_r_0_F_r_1_m, alpha_0_r_0_F_r_1_m);
             this->g_alpha_0_r_0_F_r_1_m = alpha_0_r_0_F_r_1_m;
             this->ekf.push_back(alpha_0_r_0_F_r_1_m);
             delete temp_alpha_0_r_0_F_r_1_m;
-            delete temp_r_1_m;
+            delete temp_r_1_m1;
 
             // alpha_0 * r_0 * G power g
             poly* temp_alpha_0_r_0_G = new poly(step_size);
@@ -185,6 +226,7 @@ class authentic
             gvec* alpha_0_r_0_G = new gvec(step_size, this->g_mod, this->g_gen);
             group_handler::poly_2_gvec(temp_alpha_0_r_0_G, alpha_0_r_0_G);
             this->g_alpha_0_r_0_G = alpha_0_r_0_G;
+            this->ekf.push_back(alpha_0_r_0_G);
             delete temp_alpha_0_r_0_G;
 
             // alpha_0 * r_0 * R power g
@@ -198,6 +240,7 @@ class authentic
             gvec* alpha_0_r_0_R = new gvec(step_size, this->g_mod, this->g_gen);
             group_handler::poly_2_gvec(temp_alpha_0_r_0_R, alpha_0_r_0_R);
             this->g_alpha_0_r_0_R = alpha_0_r_0_R;
+            this->ekf.push_back(alpha_0_r_0_R);
             delete temp_alpha_0_r_0_R;
 
              // gamma_1 * r_1 power g
@@ -231,16 +274,16 @@ class authentic
                     temp_alpha_1_r_1_F_r_0_m->coeff[i] = this->r_1->coeff[i - step_size];
                 }
             }
-            poly* temp_r_0_m = new poly(this->r_0->ring_dim);
-            poly_handler::poly_neg(this->r_0, temp_r_0_m);
-            poly_handler::poly_add(temp_alpha_1_r_1_F_r_0_m, temp_r_0_m, temp_alpha_1_r_1_F_r_0_m);
+            poly* temp_r_0_m1 = new poly(this->r_0->ring_dim);
+            poly_handler::poly_neg(this->r_0, temp_r_0_m1);
+            poly_handler::poly_add(temp_alpha_1_r_1_F_r_0_m, temp_r_0_m1, temp_alpha_1_r_1_F_r_0_m);
             poly_handler::poly_scal_mul_p(this->alpha_1, temp_alpha_1_r_1_F_r_0_m, temp_alpha_1_r_1_F_r_0_m);
             gvec* alpha_1_r_1_F_r_0_m = new gvec(this->r_1->ring_dim, this->g_mod, this->g_gen);
             group_handler::poly_2_gvec(temp_alpha_1_r_1_F_r_0_m, alpha_1_r_1_F_r_0_m);
             this->g_alpha_1_r_1_F_r_0_m = alpha_1_r_1_F_r_0_m;
             this->ekf.push_back(alpha_1_r_1_F_r_0_m);
             delete temp_alpha_1_r_1_F_r_0_m;
-            delete temp_r_0_m;
+            delete temp_r_0_m1;
 
             // alpha_1 * r_1 * G power g
             poly* temp_alpha_1_r_1_G = new poly(step_size);
@@ -253,6 +296,7 @@ class authentic
             gvec* alpha_1_r_1_G = new gvec(step_size, this->g_mod, this->g_gen);
             group_handler::poly_2_gvec(temp_alpha_1_r_1_G, alpha_1_r_1_G);
             this->g_alpha_1_r_1_G = alpha_1_r_1_G;
+            this->ekf.push_back(alpha_1_r_1_G);
             delete temp_alpha_1_r_1_G;
 
             // alpha_1 * r_1 * R power g
@@ -266,6 +310,7 @@ class authentic
             gvec* alpha_1_r_1_R = new gvec(step_size, this->g_mod, this->g_gen);
             group_handler::poly_2_gvec(temp_alpha_1_r_1_R, alpha_1_r_1_R);
             this->g_alpha_1_r_1_R = alpha_1_r_1_R;
+            this->ekf.push_back(alpha_1_r_1_R);
             delete temp_alpha_1_r_1_R;
 
             // delta * s power g
@@ -275,11 +320,58 @@ class authentic
             gvec* delta_s = new gvec(this->s->ring_dim, this->g_mod, this->g_gen);
             group_handler::poly_2_gvec(temp_delta_s, delta_s);
             this->g_delta_s = delta_s;
+            this->ekf.push_back(delta_s);
             delete temp_delta_s;
 
             // need to decribe beta_0(s*H - r_1), beta_1(s*H - r_0)
-            
+            std::vector<poly*> temp_sH(8);
+            for(int i = 0; i < 8; i++)
+            {
+                temp_sH[i] = new poly(2 * this->poly_degree);
+                crypto_handler::pval_mr_mul(this->s, H_enc_mat[i], temp_sH[i]);
+            }
 
+            poly* sH = poly_handler::poly_recur_concat(temp_sH);
+
+            poly* temp_r_1_m2 = new poly(this->r_1->ring_dim);
+            poly_handler::poly_neg(this->r_1, temp_r_1_m2);
+            poly* temp_s_H_r_1_m = new poly(sH->ring_dim);
+            poly_handler::poly_add(sH, temp_r_1_m2, temp_s_H_r_1_m);
+            poly* temp_beta_0_s_H_r_1_m = new poly(sH->ring_dim);
+            poly_handler::poly_scal_mul_p(this->beta_0, temp_s_H_r_1_m, temp_beta_0_s_H_r_1_m);
+            gvec* beta_0_s_H_r_1_m = new gvec(sH->ring_dim, this->g_mod, this->g_gen);
+            group_handler::poly_2_gvec(temp_beta_0_s_H_r_1_m, beta_0_s_H_r_1_m);
+            this->g_beta_0_s_H_r_1_m = beta_0_s_H_r_1_m;
+            this->ekf.push_back(beta_0_s_H_r_1_m);
+            delete temp_r_1_m2;
+            delete temp_s_H_r_1_m;
+            delete temp_beta_0_s_H_r_1_m;
+            
+            poly* temp_r_0_m2 = new poly(this->r_0->ring_dim);
+            poly_handler::poly_neg(this->r_0, temp_r_0_m2);
+            poly* temp_s_H_r_0_m = new poly(sH->ring_dim);
+            poly_handler::poly_add(sH, temp_r_0_m2, temp_s_H_r_0_m);
+            poly* temp_beta_1_s_H_r_0_m = new poly(sH->ring_dim);
+            poly_handler::poly_scal_mul_p(this->beta_1, temp_s_H_r_0_m, temp_beta_1_s_H_r_0_m);
+            gvec* beta_1_s_H_r_0_m = new gvec(sH->ring_dim, this->g_mod, this->g_gen);
+            group_handler::poly_2_gvec(temp_beta_1_s_H_r_0_m, beta_1_s_H_r_0_m);
+            this->g_beta_1_s_H_r_0_m = beta_1_s_H_r_0_m;
+            this->ekf.push_back(beta_1_s_H_r_0_m);
+            delete temp_r_0_m2;
+            delete temp_s_H_r_0_m;
+            delete temp_beta_1_s_H_r_0_m;
+
+            for(auto& factor : temp_sH)
+            {
+                if(factor != nullptr)
+                {
+                    delete factor;
+                    factor = nullptr;
+                }
+            }
+            temp_sH.clear();
+            delete sH;
+            
             // r_0 power g
             gvec* r_0 = new gvec(this->r_0->ring_dim, this->g_mod, this->g_gen);
             group_handler::poly_2_gvec(this->r_0, r_0);
