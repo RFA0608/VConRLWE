@@ -376,16 +376,19 @@ class authentic
             gvec* r_0 = new gvec(this->r_0->ring_dim, this->g_mod, this->g_gen);
             group_handler::poly_2_gvec(this->r_0, r_0);
             this->g_r_0 = r_0;
+            this->ekf.push_back(r_0);
 
             // r_1 power g
             gvec* r_1 = new gvec(this->r_1->ring_dim, this->g_mod, this->g_gen);
             group_handler::poly_2_gvec(this->r_1, r_1);
             this->g_r_1 = r_1;
+            this->ekf.push_back(r_1);
 
             // s power g
             gvec* s = new gvec(this->s->ring_dim, this->g_mod, this->g_gen);
             group_handler::poly_2_gvec(this->s, s);
             this->g_s = s;
+            this->ekf.push_back(s);
         }
 };
 
