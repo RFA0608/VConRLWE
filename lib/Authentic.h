@@ -323,7 +323,7 @@ class authentic
             this->ekf.push_back(delta_s);
             delete temp_delta_s;
 
-            // need to decribe beta_0(s*H - r_1), beta_1(s*H - r_0)
+            // beta_0(s*H - r_1), beta_1(s*H - r_0), respectively.
             std::vector<poly*> temp_sH(8);
             for(int i = 0; i < 8; i++)
             {
