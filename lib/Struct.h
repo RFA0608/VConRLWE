@@ -78,7 +78,7 @@ class poly_handler
 
                 for(int i = op1->ring_dim; i < res->ring_dim; i++)
                 {
-                    res->coeff[i] = op1->coeff[i - op1->ring_dim];
+                    res->coeff[i] = op2->coeff[i - op1->ring_dim];
                 }
 
                 return 0;
@@ -678,7 +678,7 @@ class matrix_handler
                 {
                     for(int i = 0; i < op1->ring_dim; i++)
                     {
-                        clone->coeff[j] += op1->coeff[j] * op2->entry[j + op2->col * i];
+                        clone->coeff[j] += op1->coeff[i] * op2->entry[j + op2->col * i];
                     }
                 }
 
@@ -1051,7 +1051,8 @@ class prime_handler
         
         static int find_schnorr_gen(const mpz_class& q, const mpz_class& p, mpz_class& res)
         {
-            mpz_class e = (p - q) / q;
+            mpz_class e = (p - 1) / q;
+            // mpz_class e = (p - q) / q;
             mpz_class h = 2;
 
             while(true)

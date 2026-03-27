@@ -865,10 +865,12 @@ class crypto_handler
                 matrix_handler::poly_matrix_mul(s1, op2->ciphertext_1, temp_res1);
                 matrix_handler::poly_matrix_mul(s2, op2->ciphertext_2, temp_res2);
                 poly_handler::poly_add(temp_res1, temp_res2, res1);
+                poly_handler::poly_mod(res1, op2->cipher_mod, res1);
 
                 matrix_handler::poly_matrix_mul(s2, op2->ciphertext_1, temp_res1);
                 matrix_handler::poly_matrix_mul(s3, op2->ciphertext_2, temp_res2);
                 poly_handler::poly_add(temp_res1, temp_res2, res2);
+                poly_handler::poly_mod(res2, op2->cipher_mod, res2);
 
                 poly_handler::poly_concat(res1, res2, res);
                 

@@ -8,12 +8,12 @@
 #include "./lib/RLWE.h"
 #include "./lib/Group.h"
 #include "./lib/Authentic.h"
-// #include "./lib/Control.h"
+#include "./lib/Control.h"
 
 using namespace std;
 
 // ==================== Hyper Parameter ==================== //
-const int poly_degree = (int)powl(2, 6);
+const int poly_degree = (int)powl(2, 4);
 const int plain_bits = 42;
 const int cipher_bits = 256;
 const int group_bits = 3072;
@@ -22,8 +22,18 @@ const double r_scale = 0.0001;
 const double s_scale = 0.001;
 // ========================================================= //
 
+
 int main()
-{
+{   
+    // ===================== Check Runtime ==================== //
+    auto stc = chrono::high_resolution_clock::now();
+    auto edc = chrono::high_resolution_clock::now();
+    auto duration = chrono::duration_cast<chrono::nanoseconds>(edc - stc);
+    double run_time = duration.count() / 1000000;
+    // ======================================================== //
+
+    
+    stc = chrono::high_resolution_clock::now();
     // ====================== Parameter ====================== //
     mpz_class plain_mod;
     prime_handler::find_ntt_prime(poly_degree, plain_bits, plain_mod);
@@ -39,12 +49,18 @@ int main()
     prime_handler::find_schnorr_prime(cipher_mod, group_bits,  group_mod);
     prime_handler::find_schnorr_gen(cipher_mod, group_mod, group_gen);
     // ======================================================== //
-
+    edc = chrono::high_resolution_clock::now();
+    duration = chrono::duration_cast<chrono::nanoseconds>(edc - stc);
+    run_time = duration.count() / 1000000;
+    cout << "Parameter setting time: " << run_time << "ms" << endl;
     // cout << plain_mod << endl;
     // cout << cipher_mod << endl;
     // cout << group_mod << endl;
     // cout << group_gen << endl;
 
+
+
+    stc = chrono::high_resolution_clock::now();
     // ================= Control (ARX) matrix ================== //
     // Original(real number field) ARX matrix representation
     vector<double> P1({-0.3844, 6.5970}); // H*(F-R*H)^3*G
@@ -70,96 +86,213 @@ int main()
     vector<vector<int64_t>> P({P1i, P2i, P3i, P4i}); 
     vector<vector<int64_t>> Q({Q1i, Q2i, Q3i, Q4i}); 
     // ========================================================= //
+    edc = chrono::high_resolution_clock::now();
+    duration = chrono::duration_cast<chrono::nanoseconds>(edc - stc);
+    run_time = duration.count() / 1000000;
+    cout << "Control (ARX) matrix setting time: " << run_time << "ms" << endl;
 
 
+    stc = chrono::high_resolution_clock::now();
+    // ============ Encrypted (ARX) controller ready =========== //
+    arx* arx_ctrl = new arx();
 
-    // ====================== Encryption ====================== //
-    vector<int64_t> pod_matrix(poly_degree, 2LL);
-    poly* packed_data = new poly(poly_degree);
-    poly* plaintext = new poly(poly_degree);
-    cipher* ciphertext = new cipher(poly_degree, plain_mod, cipher_mod, psi_p, psi_c);
+    // secret key generation
     poly* sk = new poly(poly_degree);
     random_handler::secret_key(sk);
-    
-    batch_encoder::encode(pod_matrix, plain_mod, psi_p, packed_data);
-    poly_handler::pack_2_plain(packed_data, plaintext);
-    crypto_handler::encrypt(plaintext, sk, ciphertext);
-    // ======================================================== //
+
+    // P and Q matrix encryption and link pointer in arx class inner variable
+    vector<int64_t> pod_matrix(poly_degree, 0LL);
+    for(int i = 0; i < 4; i++)
+    {
+        pod_matrix[0] = P[i][0];
+        pod_matrix[1] = P[i][1];
+
+        poly* pre_packed_data = new poly(poly_degree);
+        batch_encoder::encode(pod_matrix, plain_mod, psi_p, pre_packed_data);
+
+        poly* pre_plaintext = new poly(poly_degree);
+        poly_handler::pack_2_plain(pre_packed_data, pre_plaintext);
+
+        cipher* ciphertext = new cipher(pre_plaintext->ring_dim, plain_mod, cipher_mod, psi_p, psi_c);
+        crypto_handler::encrypt(pre_plaintext, sk, ciphertext);
+
+        arx_ctrl->P_y[i] = ciphertext;
+
+        delete pre_packed_data;
+        delete pre_plaintext;
+    }
+
+    pod_matrix[1] = 0;
+    for(int i = 0; i < 4; i++)
+    {
+        pod_matrix[0] = Q[i][0];
+
+        poly* pre_packed_data = new poly(poly_degree);
+        batch_encoder::encode(pod_matrix, plain_mod, psi_p, pre_packed_data);
+
+        poly* pre_plaintext = new poly(poly_degree);
+        poly_handler::pack_2_plain(pre_packed_data, pre_plaintext);
+
+        cipher* ciphertext = new cipher(pre_plaintext->ring_dim, plain_mod, cipher_mod, psi_p, psi_c);
+        crypto_handler::encrypt(pre_plaintext, sk, ciphertext);
+
+        arx_ctrl->Q_u[i] = ciphertext;
+
+        delete pre_packed_data;
+        delete pre_plaintext;
+    }
+
+    pod_matrix[0] = 0;
+
+    poly* pre_packed_data = new poly(poly_degree);
+    batch_encoder::encode(pod_matrix, plain_mod, psi_p, pre_packed_data);
+
+    poly* pre_plaintext = new poly(poly_degree);
+    poly_handler::pack_2_plain(pre_packed_data, pre_plaintext);
+
+    cipher* ciphertext = new cipher(pre_plaintext->ring_dim, plain_mod, cipher_mod, psi_p, psi_c);
+    crypto_handler::encrypt(pre_plaintext, sk, ciphertext);
+
+    arx_ctrl->temp = ciphertext;
+    arx_ctrl->zero_set();
+
+    delete pre_packed_data;
+    delete pre_plaintext;
+    // ========================================================= //
+    edc = chrono::high_resolution_clock::now();
+    duration = chrono::duration_cast<chrono::nanoseconds>(edc - stc);
+    run_time = duration.count() / 1000000;
+    cout << "controller encryption time: " << run_time << "ms" << endl;
 
 
-    
-    // ==================== Representation ==================== //
-    vr_cipher* vrciphertext = new vr_cipher(poly_degree, plain_mod, cipher_mod);
-    format_transform_handler::cipher_2_vr_cipher(ciphertext, vrciphertext);
 
-    mr_cipher* mrciphertext = new mr_cipher(poly_degree, plain_mod, cipher_mod);
-    format_transform_handler::cipher_2_mr_cipher(ciphertext, mrciphertext);
-
-    vr_cipher* res_vrciphertext = new vr_cipher(poly_degree, plain_mod, cipher_mod);
-    crypto_handler::eval_mvr_mul(mrciphertext, vrciphertext, res_vrciphertext);
-    // ======================================================== //
-
-
-
-    // ==================== On group structure ==================== //
-    poly* concat_vrciphertext = new poly(2 * poly_degree);
-    poly_handler::poly_concat(vrciphertext->ciphertext_1, vrciphertext->ciphertext_2, concat_vrciphertext);
-
-    gvec* gociphertext = new gvec(concat_vrciphertext->ring_dim, group_mod, group_gen);
-    group_handler::poly_2_gvec(concat_vrciphertext, gociphertext);
-    // ============================================================ //
-
-
-
-    // ======================== De-flag ======================= //
-    cipher* re_cipher = new cipher(poly_degree, plain_mod, cipher_mod, psi_p, psi_c);
-    format_transform_handler::vr_cipher_2_cipher(res_vrciphertext, re_cipher);
-    // ======================================================== //
-
-
-
-    auto stc = chrono::high_resolution_clock::now();
-
+    stc = chrono::high_resolution_clock::now();
     // ==================== Authenticator test ==================== //
     authentic* auth = new authentic(poly_degree, cipher_mod, group_mod, group_gen);
-    cipher* temp = new cipher(poly_degree, plain_mod, cipher_mod, psi_p, psi_c);
     vector<mr_cipher*> encH;
-    encH = auth->make_encH(temp, sk, P, Q);
+    encH = auth->make_encH(arx_ctrl->P_y, arx_ctrl->Q_u);
     auth->make_ekf(encH);
     // ============================================================ //
-
-    auto edc = chrono::high_resolution_clock::now();
-    auto duration = chrono::duration_cast<chrono::nanoseconds>(edc - stc);
+    edc = chrono::high_resolution_clock::now();
     duration = chrono::duration_cast<chrono::nanoseconds>(edc - stc);
-    double run_time = duration.count() / 1000000;
-    cout << "run time: " << run_time << "ms" << endl;
+    run_time = duration.count() / 1000000;
+    cout << "Authenticator test time: " << run_time << "ms" << endl;
 
-    // ======================== Decrypt ======================= //
-    poly* res_plain = new poly(poly_degree);
-    poly* res_pack = new poly(poly_degree);
-    vector<int64_t> res_matrix(poly_degree, 0LL);
 
-    crypto_handler::decrypt(re_cipher, sk, res_plain);
-    poly_handler::plain_2_pack(res_plain, res_pack);
-    batch_encoder::decode(res_pack, plain_mod, psi_p, res_matrix);
-    // ======================================================== //
 
-    cout << res_matrix[0] << endl;
+    cout << "!! Simulation test start !!" << endl;
+    // ===================== Simulation test ====================== //
+    // make plant class
+    vector<double> x_init({0, 0, 0.1, 0});
+    plant* plt = new plant(x_init);
 
-    delete packed_data;
-    delete plaintext;
-    delete ciphertext;
+    // variables for signal encryption
+    poly* plaintext = new poly(poly_degree);
+    poly* packed_data = new poly(poly_degree);
+    vector<int64_t> result_data(poly_degree, 0LL);
+    int64_t temp_u;
+    vector<double> real_u(1);
+
+    // variables for singal transaction
+    vector<int64_t> plant_output(poly_degree, 0LL);
+    vector<int64_t> control_input(poly_degree, 0LL);
+    cipher* plt_out = new cipher(plaintext->ring_dim, plain_mod, cipher_mod, psi_p, psi_c);
+    cipher* ctrl_in = new cipher(plaintext->ring_dim, plain_mod, cipher_mod, psi_p, psi_c);
+
+    // ready to authentic
+    mpz_class previous_pf;
+    std::vector<poly*> initial_crypto_state_stack(16);
+    for(int i = 0; i < 8; i++)
+    {
+        if(i < 4)
+        {
+            initial_crypto_state_stack[2 * i] = new poly(poly_degree);
+            initial_crypto_state_stack[2 * i]->coeff = arx_ctrl->mem_y_pre[i]->ciphertext[0]->coeff;
+            initial_crypto_state_stack[2 * i + 1]= new poly(poly_degree);
+            initial_crypto_state_stack[2 * i + 1]->coeff = arx_ctrl->mem_y_pre[i]->ciphertext[1]->coeff;
+        }
+        else
+        {
+            initial_crypto_state_stack[2 * i] = new poly(poly_degree);
+            initial_crypto_state_stack[2 * i]->coeff = arx_ctrl->mem_u_pre[i - 4]->ciphertext[0]->coeff;
+            initial_crypto_state_stack[2 * i + 1]= new poly(poly_degree);
+            initial_crypto_state_stack[2 * i + 1]->coeff = arx_ctrl->mem_u_pre[i - 4]->ciphertext[1]->coeff;
+        }
+    }
+    poly* initial_crypto_state = poly_handler::poly_recur_concat(initial_crypto_state_stack);
+    group_handler::group_dot(auth->g_r_1, initial_crypto_state, previous_pf);
+    for(auto& factor : initial_crypto_state_stack)
+    {
+        if(factor != nullptr)
+        {
+            delete factor;
+            factor = nullptr;
+        }
+    }
+    initial_crypto_state_stack.clear();
+    delete initial_crypto_state;
+
+    // authentic pass check
+    bool pass = false;
+
+    int iter = 500;
+
+    for(int i = 0; i < iter; i++)
+    {
+        // iteration time check
+        stc = std::chrono::high_resolution_clock::now();
+
+        // get plant output and calculation control input
+        plt->output();
+        arx_ctrl->calc();
+
+        // get control input
+        crypto_handler::decrypt(arx_ctrl->calc_res, sk, plaintext);
+        batch_encoder::decode(plaintext, plain_mod, psi_p, result_data);
+        temp_u = result_data[0] + result_data[1];
+
+        real_u[0] = (double)temp_u * r_scale * s_scale;
+
+        // plant output encryption
+        plant_output[0] = (int64_t)(plt->y[0] / r_scale);
+        plant_output[1] = (int64_t)(plt->y[1] / r_scale);
+        batch_encoder::encode(plant_output, plain_mod, psi_p, plaintext);
+        crypto_handler::encrypt(plaintext, sk, plt_out);
+
+        // re-encryption
+        control_input[0] = (int64_t)(real_u[0] / r_scale);   
+        batch_encoder::encode(control_input, plain_mod, psi_p, plaintext);
+        crypto_handler::encrypt(plaintext, sk, ctrl_in);
+
+        // plant state update and controller memory update
+        plt->state_update(real_u);
+        arx_ctrl->mem_update(plt_out, ctrl_in);
+        if(i >= 50 && i < 100)
+        {
+            arx_ctrl->mem_y_new[3]->ciphertext[0]->coeff[1] += 1;
+        }
+
+        // Authentication
+        auth->generate_proof(arx_ctrl->mem_y_new, arx_ctrl->mem_u_new, arx_ctrl->mem_y_pre, arx_ctrl->mem_u_pre);
+        pass = auth->verifying_proof(plt_out, ctrl_in, arx_ctrl->calc_res, previous_pf);
+
+        // debug print
+        edc = std::chrono::high_resolution_clock::now();
+        duration = chrono::duration_cast<chrono::nanoseconds>(edc - stc);
+        run_time = duration.count() / 1000000;
+        cout << "iter [" << i+1 << "] | time: " << run_time << "ms" << " | u: " << real_u[0] << " | y: " << plt->y[0] << ", " << plt->y[1] << endl;
+        cout << "pass :" << pass <<endl;
+    }
+    // ============================================================ //
+
+
+
+    // ====================== Free variables ====================== //
     delete sk;
 
-    delete vrciphertext;
-    delete mrciphertext;
-    delete res_vrciphertext;
-
-    delete concat_vrciphertext;
-    delete gociphertext;
+    delete arx_ctrl;
 
     delete auth;
-    delete temp;
     for(auto& factor : encH)
     {
         if(factor != nullptr)
@@ -169,262 +302,9 @@ int main()
         }
     }
     encH.clear();
-    
-    delete re_cipher;
 
-    delete res_plain;
-    delete res_pack;
+    delete plt;
+    // ============================================================ //
 
     return 0;
 }
-
-// Previous Description
-// int main()
-// {
-//     // ================================================================================ //
-//     //                               Setting for Control                                //
-//     // ================================================================================ //
-
-//     vector<double> P1({-0.3844, 6.5970}); // H*(F-R*H)^3*G
-//     vector<double> P2({1.9504, -32.9119}); // H*(F-R*H)^2*G
-//     vector<double> P3({-2.8663, 50.1128}); // H*(F-R*H)^1*G
-//     vector<double> P4({1.3015, -23.9663}); // H*(F-R*H)^0*G
-
-//     vector<double> Q1({-0.0945}); // H*(F-R*H)^3*R
-//     vector<double> Q2({0.5509}); // H*(F-R*H)^2*R
-//     vector<double> Q3({-1.3776}); // H*(F-R*H)^1*R
-//     vector<double> Q4({1.9065}); // H*(F-R*H)^0*R
-
-//     double r_scale = 0.0001;
-//     double s_scale = 0.001;
-
-//     vector<int64_t> P1i(2); P1i[0] = (int64_t)(P1[0] / s_scale); P1i[1] = (int64_t)(P1[1] / s_scale);
-//     vector<int64_t> P2i(2); P2i[0] = (int64_t)(P2[0] / s_scale); P2i[1] = (int64_t)(P2[1] / s_scale);
-//     vector<int64_t> P3i(2); P3i[0] = (int64_t)(P3[0] / s_scale); P3i[1] = (int64_t)(P3[1] / s_scale);
-//     vector<int64_t> P4i(2); P4i[0] = (int64_t)(P4[0] / s_scale); P4i[1] = (int64_t)(P4[1] / s_scale);
-
-//     vector<int64_t> Q1i(1); Q1i[0] = (int64_t)(Q1[0] / s_scale);
-//     vector<int64_t> Q2i(1); Q2i[0] = (int64_t)(Q2[0] / s_scale);
-//     vector<int64_t> Q3i(1); Q3i[0] = (int64_t)(Q3[0] / s_scale);
-//     vector<int64_t> Q4i(1); Q4i[0] = (int64_t)(Q4[0] / s_scale);
-
-//     vector<vector<int64_t>> P({P1i, P2i, P3i, P4i}); 
-//     vector<vector<int64_t>> Q({Q1i, Q2i, Q3i, Q4i}); 
-
-//     vector<double> x_init({0, 0, 0.1, 0});
-
-//     // ================================================================================ //
-//     //                               Setting for Encrypt                                //
-//     // ================================================================================ //
-//     // set poly degree and plaintext modulus bits size
-//     int poly_degree = (int)powl(2, 12);
-//     int plain_bits = 42;
-//     int cipher_bits = 256;
-//     int group_bits = 3072;
-
-//     mpz_class plain_mod;
-//     prime_handler::find_ntt_prime(poly_degree, plain_bits, plain_mod);
-//     mpz_class psi_p;
-//     prime_handler::find_ntt_root(poly_degree, plain_mod, psi_p);
-
-//     mpz_class cipher_mod;
-//     prime_handler::find_ntt_prime(poly_degree, cipher_bits, cipher_mod);
-//     mpz_class psi_c;
-//     prime_handler::find_ntt_root(poly_degree, cipher_mod, psi_c);
-
-//     mpz_class group_mod, group_gen;
-//     prime_handler::find_schnorr_prime(cipher_mod, group_bits,  group_mod);
-//     prime_handler::find_schnorr_gen(cipher_mod, group_mod, group_gen);
-
-//     cout << "ℹ️ Plaintext modulus: \n" << plain_mod << endl << endl;
-//     cout << "ℹ️ Ciphertext modulus: \n" << cipher_mod << endl << endl;
-//     cout << "ℹ️ Schnorr Group safety modulus: \n" << group_mod << endl << endl;
-//     cout << "ℹ️ Schnorr Group safety generator: \n" << group_gen << endl << endl;
-
-//     // ================================================================================ //
-//     //                               Simulation setting                                 //
-//     // ================================================================================ //
-
-//     // time trip set
-//     auto start = std::chrono::steady_clock::now();
-//     auto end = std::chrono::steady_clock::now();
-//     std::chrono::duration<double, std::milli> ms_double = end - start;
-
-//     // set cipher secret key
-//     poly* sk = new poly(poly_degree);
-//     random_handler::secret_key(sk);
-
-//     // set verifiable key 
-//     poly* r_0 = new poly(24 * poly_degree);
-//     random_handler::not_zero_public_key(cipher_mod, r_0);
-//     poly* r_1 = new poly(24 * poly_degree);
-//     random_handler::not_zero_public_key(cipher_mod, r_1);
-//     poly* s = new poly(3 * poly_degree);
-//     random_handler::not_zero_public_key(cipher_mod, s);
-    
-//     // set controller on ciphertext space
-//     arx* ctrl = new arx();
-//     vc* ek = new vc();
-
-//     // set plant on plaintext(Real) space
-//     plant* plt = new plant(x_init);
-
-//     // set cipher initializer
-//     start = std::chrono::steady_clock::now();
-
-//     vector<int64_t> pod_matrix(poly_degree, 0LL);
-//     for(int i = 0; i < 4; i++)
-//     {
-//         pod_matrix[0] = P[i][0];
-//         pod_matrix[1] = P[i][1];
-
-//         poly* pre_packed_data = new poly(poly_degree);
-//         batch_encoder::encode(pod_matrix, plain_mod, psi_p, pre_packed_data);
-
-//         poly* pre_plaintext = new poly(poly_degree);
-//         poly_handler::pack_2_plain(pre_packed_data, pre_plaintext);
-
-//         cipher* ciphertext = new cipher(pre_plaintext->ring_dim, plain_mod, cipher_mod, psi_p, psi_c);
-//         crypto_handler::encrypt(pre_plaintext, sk, ciphertext);
-
-//         ctrl->P_y[i] = ciphertext;
-
-//         delete pre_packed_data;
-//         delete pre_plaintext;
-//     }
-
-//     pod_matrix[1] = 0;
-//     for(int i = 0; i < 4; i++)
-//     {
-//         pod_matrix[0] = Q[i][0];
-
-//         poly* pre_packed_data = new poly(poly_degree);
-//         batch_encoder::encode(pod_matrix, plain_mod, psi_p, pre_packed_data);
-
-//         poly* pre_plaintext = new poly(poly_degree);
-//         poly_handler::pack_2_plain(pre_packed_data, pre_plaintext);
-
-//         cipher* ciphertext = new cipher(pre_plaintext->ring_dim, plain_mod, cipher_mod, psi_p, psi_c);
-//         crypto_handler::encrypt(pre_plaintext, sk, ciphertext);
-
-//         ctrl->Q_u[i] = ciphertext;
-
-//         delete pre_packed_data;
-//         delete pre_plaintext;
-//     }
-
-//     pod_matrix[0] = 0;
-//     poly* pre_packed_data = new poly(poly_degree);
-//     batch_encoder::encode(pod_matrix, plain_mod, psi_p, pre_packed_data);
-
-//     poly* pre_plaintext = new poly(poly_degree);
-//     poly_handler::pack_2_plain(pre_packed_data, pre_plaintext);
-
-//     cipher* ciphertext = new cipher(pre_plaintext->ring_dim, plain_mod, cipher_mod, psi_p, psi_c);
-//     crypto_handler::encrypt(pre_plaintext, sk, ciphertext);
-
-//     ctrl->temp = ciphertext;
-
-//     delete pre_packed_data;
-//     delete pre_plaintext;
-
-//     ctrl->zero_set();
-
-//     end = std::chrono::steady_clock::now();
-//     ms_double = end - start;
-
-//     cout << "✅ Nominal (encrypted) controller set done | 🕒 " <<  ms_double.count() << "ms" << endl;
-
-//     // set controller side value link to verifiable computation object
-//     start = std::chrono::steady_clock::now();
-
-//     // ek->arx_coe_set(ctrl);
-//     ek->link_memory(ctrl);
-//     ek->set_ekf(ctrl, r_0, r_1, s);
-
-//     end = std::chrono::steady_clock::now();
-//     ms_double = end - start;
-
-//     cout << "EKF gen-time | 🕒 " <<  ms_double.count() << "ms" << endl;
-
-//     ek->up_2_g(group_mod, group_gen);
-
-//     end = std::chrono::steady_clock::now();
-//     ms_double = end - start;
-
-//     cout << "✅ Verifiable computation set done | 🕒 " <<  ms_double.count() << "ms" << endl << endl;
-
-//     // ================================================================================ //
-//     //                                     Simulation                                   //
-//     // ================================================================================ //
-
-//     // set maximum iter
-//     int iter = 2;
-
-//     // set needs variable
-//     poly* plaintext = new poly(poly_degree);
-//     poly* packed_data = new poly(poly_degree);
-//     vector<int64_t> result_data(poly_degree, 0LL);
-//     int64_t temp_u;
-//     vector<double> real_u(1);
-
-//     vector<int64_t> plant_output(poly_degree, 0LL);
-//     vector<int64_t> control_input(poly_degree, 0LL);
-//     cipher* plt_out = new cipher(plaintext->ring_dim, plain_mod, cipher_mod, psi_p, psi_c);
-//     cipher* ctrl_in = new cipher(plaintext->ring_dim, plain_mod, cipher_mod, psi_p, psi_c);
-
-
-//     cout << "ℹ️ Iteration Start" << endl;
-
-//     // iteration start
-//     for(int i = 0; i < iter; i++)
-//     {
-//         // iteration time check
-//         start = std::chrono::steady_clock::now();
-
-//         // get plant output and calculation control input
-//         plt->output();
-//         ctrl->calc();
-
-//         // get control input
-//         crypto_handler::decrypt(ctrl->calc_res, sk, plaintext);
-//         batch_encoder::decode(plaintext, plain_mod, psi_p, result_data);
-//         temp_u = result_data[0] + result_data[1];
-
-//         real_u[0] = (double)temp_u * r_scale * s_scale;
-
-//         // plant output encryption
-//         plant_output[0] = (int64_t)(plt->y[0] / r_scale);
-//         plant_output[1] = (int64_t)(plt->y[1] / r_scale);
-//         batch_encoder::encode(plant_output, plain_mod, psi_p, plaintext);
-//         crypto_handler::encrypt(plaintext, sk, plt_out);
-
-//         // re-encryption
-//         control_input[0] = (int64_t)(real_u[0] / r_scale);   
-//         batch_encoder::encode(control_input, plain_mod, psi_p, plaintext);
-//         crypto_handler::encrypt(plaintext, sk, ctrl_in);
-
-//         // plant state update and controller memory update
-//         plt->state_update(real_u);
-//         ctrl->mem_update(plt_out, ctrl_in);
-
-//         // debug print
-//         end = std::chrono::steady_clock::now();
-//         ms_double = end - start;
-//         cout << "🔄️ iter : "<< i + 1 << " 🕒 : " << ms_double.count() <<"ms " << "🖥️ u: " << real_u[0] << " y: " << plt->y[0] << ", " << plt->y[1] << endl;
-//     }
-
-//     // memory free
-//     delete sk;
-//     delete ctrl;
-//     delete ek;
-//     delete plt;
-    
-//     delete plaintext;
-//     delete packed_data;
-
-//     delete plt_out;
-//     delete ctrl_in;
-    
-//     return 0;
-// }

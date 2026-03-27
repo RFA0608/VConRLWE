@@ -116,6 +116,11 @@ class group_handler
             }
         }
 
+        // static void group_scal_exp(mpz_class& op1, mpz_class& op2, mpz_class& g_mod, mpz_class& res)
+        // {
+        //     mpz_powm(res.get_mpz_t(), op1.get_mpz_t(), op2.get_mpz_t(), g_mod.get_mpz_t());
+        // }
+
         static int group_mul(gvec* op1, gvec* op2, gvec* res)
         {
             if(!group_handler::eval_meta_eq(op1, res) || !group_handler::eval_meta_eq(op2, res))
@@ -147,7 +152,7 @@ class group_handler
                 #pragma omp parallel for
                 for(int i = 0; i < op1->size; i++)
                 {
-                    mpz_powm(temp[i].get_mpz_t(), op1->g_gen.get_mpz_t(), op2->coeff[i].get_mpz_t(), op1->g_mod.get_mpz_t());
+                    mpz_powm(temp[i].get_mpz_t(), op1->vec[i].get_mpz_t(), op2->coeff[i].get_mpz_t(), op1->g_mod.get_mpz_t());
                 }
 
                 for(int i = 0; i < op1->size; i++)
