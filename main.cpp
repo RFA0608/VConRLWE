@@ -13,7 +13,7 @@
 using namespace std;
 
 // ==================== Hyper Parameter ==================== //
-const int poly_degree = (int)powl(2, 4);
+const int poly_degree = (int)powl(2, 1);
 const int plain_bits = 42;
 const int cipher_bits = 256;
 const int group_bits = 3072;
@@ -235,7 +235,7 @@ int main()
     // authentic pass check
     bool pass = false;
 
-    int iter = 500;
+    int iter = 3;
 
     for(int i = 0; i < iter; i++)
     {
@@ -304,6 +304,10 @@ int main()
     encH.clear();
 
     delete plt;
+    delete plaintext;
+    delete packed_data;
+    delete plt_out;
+    delete ctrl_in;
     // ============================================================ //
 
     return 0;

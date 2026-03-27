@@ -562,6 +562,7 @@ class authentic
             }
 
             delete Y;
+            delete U_re;
             delete U;
 
             previous_pf = this->timing ? this->odd_nu[0] : this->even_nu[0];
