@@ -74,7 +74,10 @@ Push below command on your CMD(bash), respectively.
 1. H행렬 가져와서 암호화 후 g위로 올림
 2. H행렬의 암호화 + g위로 올릴때 필요한 함수 추가 (recur_concat, poly_mr_cipher_mult 같은)
 
-## 260327
+### 260327
 1. VC 구현
 2. 제어기 구현
 3. 공격 시나리오 검증
+
+# 완성율
+개발 완료 최적화 진행중
