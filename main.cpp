@@ -275,7 +275,7 @@ int main()
         batch_encoder::encode(control_input, plain_mod, psi_p, plaintext);
         crypto_handler::encrypt(plaintext, sk, ctrl_in);
         enc_edc = std::chrono::high_resolution_clock::now();
-        enc_duration = chrono::duration_cast<chrono::nanoseconds>(edc - stc);
+        enc_duration = chrono::duration_cast<chrono::nanoseconds>(enc_edc - enc_stc);
         enc_run_time = enc_duration.count() / 1000000;
 
         // plant state update and controller memory update
@@ -291,7 +291,7 @@ int main()
         auth->generate_proof(arx_ctrl->mem_y_new, arx_ctrl->mem_u_new, arx_ctrl->mem_y_pre, arx_ctrl->mem_u_pre);
         pass = auth->verifying_proof(plt_out, ctrl_in, arx_ctrl->calc_res, previous_pf);
         vc_edc = std::chrono::high_resolution_clock::now();
-        vc_duration = chrono::duration_cast<chrono::nanoseconds>(edc - stc);
+        vc_duration = chrono::duration_cast<chrono::nanoseconds>(vc_edc - vc_stc);
         vc_run_time = vc_duration.count() / 1000000;
 
         // debug print
@@ -299,7 +299,7 @@ int main()
         duration = chrono::duration_cast<chrono::nanoseconds>(edc - stc);
         run_time = duration.count() / 1000000;
         cout << "iter [" << i+1 << "] | time: " << run_time << "ms" << " | u: " << real_u[0] << " | y: " << plt->y[0] << ", " << plt->y[1] << endl;
-        cout << "pass: " << pass << " | enc run time: " << enc_run_time << " | vc run time: " << vc_run_time << endl;
+        cout << "pass: " << pass << " | enc run time: " << enc_run_time << "ms | vc run time: " << vc_run_time << "ms" << endl;
     }
     // ============================================================ //
 
