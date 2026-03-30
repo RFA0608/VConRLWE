@@ -13,7 +13,7 @@
 using namespace std;
 
 // ==================== Hyper Parameter ==================== //
-const int poly_degree = (int)powl(2, 11);
+const int poly_degree = (int)powl(2, 12);
 const int plain_bits = 42;
 const int cipher_bits = 256;
 const int group_bits = 3072;
@@ -235,7 +235,17 @@ int main()
     // authentic pass check
     bool pass = false;
 
-    int iter = 3;
+    int iter = 100;
+
+    auto enc_stc = std::chrono::high_resolution_clock::now();
+    auto enc_edc = std::chrono::high_resolution_clock::now();
+    auto enc_duration = chrono::duration_cast<chrono::nanoseconds>(edc - stc);
+    double enc_run_time = duration.count() / 1000000;
+
+    auto vc_stc = std::chrono::high_resolution_clock::now();
+    auto vc_edc = std::chrono::high_resolution_clock::now();
+    auto vc_duration = chrono::duration_cast<chrono::nanoseconds>(edc - stc);
+    double vc_run_time = duration.count() / 1000000;
 
     for(int i = 0; i < iter; i++)
     {
@@ -253,6 +263,7 @@ int main()
 
         real_u[0] = (double)temp_u * r_scale * s_scale;
 
+        enc_stc = std::chrono::high_resolution_clock::now();
         // plant output encryption
         plant_output[0] = (int64_t)(plt->y[0] / r_scale);
         plant_output[1] = (int64_t)(plt->y[1] / r_scale);
@@ -263,6 +274,9 @@ int main()
         control_input[0] = (int64_t)(real_u[0] / r_scale);   
         batch_encoder::encode(control_input, plain_mod, psi_p, plaintext);
         crypto_handler::encrypt(plaintext, sk, ctrl_in);
+        enc_edc = std::chrono::high_resolution_clock::now();
+        enc_duration = chrono::duration_cast<chrono::nanoseconds>(edc - stc);
+        enc_run_time = enc_duration.count() / 1000000;
 
         // plant state update and controller memory update
         plt->state_update(real_u);
@@ -272,16 +286,20 @@ int main()
             arx_ctrl->mem_y_new[3]->ciphertext[0]->coeff[1] += 1;
         }
 
+        vc_stc = std::chrono::high_resolution_clock::now();
         // Authentication
         auth->generate_proof(arx_ctrl->mem_y_new, arx_ctrl->mem_u_new, arx_ctrl->mem_y_pre, arx_ctrl->mem_u_pre);
         pass = auth->verifying_proof(plt_out, ctrl_in, arx_ctrl->calc_res, previous_pf);
+        vc_edc = std::chrono::high_resolution_clock::now();
+        vc_duration = chrono::duration_cast<chrono::nanoseconds>(edc - stc);
+        vc_run_time = vc_duration.count() / 1000000;
 
         // debug print
         edc = std::chrono::high_resolution_clock::now();
         duration = chrono::duration_cast<chrono::nanoseconds>(edc - stc);
         run_time = duration.count() / 1000000;
         cout << "iter [" << i+1 << "] | time: " << run_time << "ms" << " | u: " << real_u[0] << " | y: " << plt->y[0] << ", " << plt->y[1] << endl;
-        cout << "pass :" << pass <<endl;
+        cout << "pass: " << pass << " | enc run time: " << enc_run_time << " | vc run time: " << vc_run_time << endl;
     }
     // ============================================================ //
 
