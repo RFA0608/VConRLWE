@@ -13,7 +13,7 @@
 using namespace std;
 
 // ==================== Hyper Parameter ==================== //
-const int poly_degree = (int)powl(2, 13);
+const int poly_degree = (int)powl(2, 14);
 const int plain_bits = 42;
 const int cipher_bits = 256;
 const int group_bits = 3072;
@@ -233,7 +233,15 @@ int main()
     // authentic pass check
     bool pass = false;
 
-    int iter = 2;
+    int iter = 20;
+
+    // CSV save
+    FILE* ps = fopen("date(y1_y2_u_vc).csv", "w");
+    if(ps == nullptr)
+    {
+        cout << "Error: Unable to open file" << endl;
+        exit(1);
+    }
 
     auto enc_stc = std::chrono::high_resolution_clock::now();
     auto enc_edc = std::chrono::high_resolution_clock::now();
@@ -292,6 +300,9 @@ int main()
         vc_duration = chrono::duration_cast<chrono::nanoseconds>(vc_edc - vc_stc);
         vc_run_time = vc_duration.count() / 1000000;
 
+        // save data
+        fprintf(ps, "%lf,%lf,%lf,%d\n",plt->y[0], plt->y[1], real_u[0], (int)pass);
+
         // debug print
         edc = std::chrono::high_resolution_clock::now();
         duration = chrono::duration_cast<chrono::nanoseconds>(edc - stc);
@@ -315,6 +326,8 @@ int main()
     delete packed_data;
     delete plt_out;
     delete ctrl_in;
+
+    fclose(ps);
     // ============================================================ //
 
     return 0;
