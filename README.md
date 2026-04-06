@@ -34,7 +34,7 @@ If you want to leakage of memory please use below cmd
   valgrind --leak-check=full --show-leak-kinds=all --track-origins=yes ./main
 ```
 
-# 3️⃣task(20260406-1217 updated)
+# 3️⃣task(20260406-1917 updated)
 ## Complete
 ### 260112
 1. Make vector, matrix, ciphertext structure.
