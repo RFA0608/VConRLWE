@@ -236,12 +236,13 @@ int main()
     int iter = 20;
 
     // CSV save
-    FILE* ps = fopen("date(y1_y2_u_vc).csv", "w");
+    FILE* ps = fopen("date(y1_y2_u_vc_enct_vct).csv", "w");
     if(ps == nullptr)
     {
         cout << "Error: Unable to open file" << endl;
         exit(1);
     }
+    fprintf(ps, "y1,y2,u,vc,enct,vct\n");
 
     auto enc_stc = std::chrono::high_resolution_clock::now();
     auto enc_edc = std::chrono::high_resolution_clock::now();
@@ -301,7 +302,7 @@ int main()
         vc_run_time = vc_duration.count() / 1000000;
 
         // save data
-        fprintf(ps, "%lf,%lf,%lf,%d\n",plt->y[0], plt->y[1], real_u[0], (int)pass);
+        fprintf(ps, "%lf,%lf,%lf,%d,%lf,%lf\n",plt->y[0], plt->y[1], real_u[0], (int)pass, enc_run_time, vc_run_time);
 
         // debug print
         edc = std::chrono::high_resolution_clock::now();
