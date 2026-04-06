@@ -1,11 +1,13 @@
 # VConRLWE
+This code is a test code for cryptographic operations and verification processes in large integer environments using gmp. 
+Verification of attacks is the primary purpose, and verification in encrypted state is implemented.
 
-# 0️⃣Pre-ready
+## 0️⃣Pre-ready
 If you want to use this repository, need to install WSL2 on Windows. 
 This recommand Ubuntu24-04 LTS version.
 On Linux system(**NOT** WSL), naturaly can run.
 
-# 1️⃣Make binary
+## 1️⃣Make binary
 Push below command on your CMD(bash), respectively.
 
 ``` bash
@@ -16,7 +18,7 @@ Push below command on your CMD(bash), respectively.
   make
 ```
 
-# 2️⃣Run
+## 2️⃣Run
 ```bash
   ./main
 ```
@@ -26,7 +28,7 @@ If you want to leakage of memory please use below cmd
   valgrind --leak-check=full --show-leak-kinds=all --track-origins=yes ./main
 ```
 
-# 3️⃣task(20260117-0832 updated)
+# 3️⃣task(20260406-1217 updated)
 ## 완료됨
 ### 260112
 1. 벡터, 행렬, 암호문 구조화
@@ -85,6 +87,9 @@ If you want to leakage of memory please use below cmd
 1. VC 구현
 2. 제어기 구현
 3. 공격 시나리오 검증
+
+### 260406
+1. 메모리 최적화
 
 # 완성율
 개발 완료 최적화 진행중
