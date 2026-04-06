@@ -19,6 +19,11 @@ Push below command on your CMD(bash), respectively.
   ./main
 ```
 
+If you want to leakage of memory please use below cmd
+``` bash
+  valgrind --leak-check=full --show-leak-kinds=all --track-origins=yes ./main
+```
+
 # 3️⃣task(20260117-0832 updated)
 ## 완료됨
 ### 260112
