@@ -50,11 +50,22 @@ class authentic
         poly* beta_0;
         poly* beta_1;
 
+
+        std::vector<poly*> mem_stack_new;
+        std::vector<poly*> mem_stack_pre;
+
+        poly* arx_state_even;
+        poly* arx_state_odd;
+
         bool timing = false;
         std::vector<mpz_class> even_nu;
         std::vector<mpz_class> even_mu;
         std::vector<mpz_class> odd_nu;
         std::vector<mpz_class> odd_mu;
+
+        poly* Y;
+        poly* U_re;
+        poly* U;
 
 
         authentic(int poly_degree, mpz_class cipher_mod, mpz_class g_mod, mpz_class g_gen):
@@ -107,10 +118,29 @@ class authentic
             this->beta_1 = beta_1;
             this->key.push_back(beta_1);
 
+            this->mem_stack_new.resize(16);
+            this->mem_stack_pre.resize(16);
+
+            poly* temp;
+            for(int i = 0; i < 16; i++)
+            {
+                temp = new poly(this->poly_degree);
+                this->mem_stack_new[i] = temp;
+                temp = new poly(this->poly_degree);
+                this->mem_stack_pre[i] = temp;
+            }
+
+            this->arx_state_even = new poly(this->poly_degree * this->mem_stack_new.size());
+            this->arx_state_odd = new poly(this->poly_degree * this->mem_stack_new.size());
+
             this->even_nu.resize(4);
             this->even_mu.resize(2);
             this->odd_nu.resize(4);
             this->odd_mu.resize(2);
+
+            this->Y = new poly(this->poly_degree * 2);
+            this->U_re = new poly(this->poly_degree * 2);
+            this->U = new poly(this->poly_degree * 3);
         };
 
         ~authentic()
@@ -134,34 +164,39 @@ class authentic
             }
             this->key.clear();
 
+            for(auto& factor : this->mem_stack_new)
+            {
+                if(factor != nullptr)
+                {
+                    delete factor;
+                    factor = nullptr;
+                }
+            }
+            this->mem_stack_new.clear();
+            for(auto& factor : this->mem_stack_pre)
+            {
+                if(factor != nullptr)
+                {
+                    delete factor;
+                    factor = nullptr;
+                }
+            }
+            this->mem_stack_pre.clear();
+
+            delete this->arx_state_even;
+            delete this->arx_state_odd;
+
             this->even_nu.clear();
             this->even_mu.clear();
             this->odd_nu.clear();
             this->odd_mu.clear();
+
+            delete this->Y;
+            delete this->U_re;
+            delete this->U;
         }
-
-        std::vector<mr_cipher*> make_encH(std::vector<cipher*>& P_enc, std::vector<cipher*>& Q_enc)
-        {
-            std::vector<mr_cipher*> mr_represent(8);
-
-            for(int i = 0; i < 8; i++)
-            {
-                if(i < 4)
-                {
-                    mr_represent[i] = new mr_cipher(P_enc[i]->ring_dim, P_enc[i]->plain_mod, P_enc[i]->cipher_mod);
-                    format_transform_handler::cipher_2_mr_cipher(P_enc[i], mr_represent[i]);
-                }
-                else
-                {
-                    mr_represent[i] = new mr_cipher(Q_enc[i-4]->ring_dim, Q_enc[i-4]->plain_mod, Q_enc[i-4]->cipher_mod);
-                    format_transform_handler::cipher_2_mr_cipher(Q_enc[i-4], mr_represent[i]);
-                }
-            }
-
-            return mr_represent;
-        }
-
-        void make_ekf(std::vector<mr_cipher*> H_enc_mat)
+        
+        void make_ekf(std::vector<cipher*>& P_enc, std::vector<cipher*>& Q_enc)
         {
             // ciphertext whole size(N size message part and N size random key part, respectivley)
             int step_size = 2 * this->poly_degree;
@@ -311,14 +346,36 @@ class authentic
             delete temp_r_1_R;
 
             // beta_0(s*H - r_1), (s*H - r_1), beta_1(s*H - r_0), (s*H - r_0), respectively
+            mr_cipher* comp_H_enc_mat =  new mr_cipher(P_enc[0]->ring_dim, P_enc[0]->plain_mod, P_enc[0]->cipher_mod);
             std::vector<poly*> temp_sH(8);
             for(int i = 0; i < 8; i++)
             {
                 temp_sH[i] = new poly(2 * this->poly_degree);
-                crypto_handler::pval_mr_mul(this->s, H_enc_mat[i], temp_sH[i]);
+                if(i < 4)
+                {
+                    format_transform_handler::cipher_2_mr_cipher(P_enc[i], comp_H_enc_mat);
+                    crypto_handler::pval_mr_mul(this->s, comp_H_enc_mat, temp_sH[i]);
+                }
+                else
+                {
+                    format_transform_handler::cipher_2_mr_cipher(Q_enc[i - 4], comp_H_enc_mat);
+                    crypto_handler::pval_mr_mul(this->s, comp_H_enc_mat, temp_sH[i]);
+                }
             }
 
+            delete comp_H_enc_mat;
+
             poly* sH = poly_handler::poly_recur_concat(temp_sH);
+
+            for(auto& factor : temp_sH)
+            {
+                if(factor != nullptr)
+                {
+                    delete factor;
+                    factor = nullptr;
+                }
+            }
+            temp_sH.clear();
 
             poly* temp_r_1_m2 = new poly(this->r_1->ring_dim);
             poly_handler::poly_neg(this->r_1, temp_r_1_m2);
@@ -355,16 +412,6 @@ class authentic
             delete temp_r_0_m2;
             delete temp_s_H_r_0_m;
             delete temp_beta_1_s_H_r_0_m;
-
-            for(auto& factor : temp_sH)
-            {
-                if(factor != nullptr)
-                {
-                    delete factor;
-                    factor = nullptr;
-                }
-            }
-            temp_sH.clear();
             delete sH;
             
             // r_0 power g
@@ -388,92 +435,57 @@ class authentic
 
         void generate_proof(std::vector<cipher*>& mem_y_new, std::vector<cipher*>& mem_u_new, std::vector<cipher*>& mem_y_pre, std::vector<cipher*>& mem_u_pre)
         {
-            std::vector<poly*> mem_stack_new(16);
-            std::vector<poly*> mem_stack_pre(16);
             for(int i = 0; i < 8; i++)
             {
                 if(i < 4)
                 {
-                    mem_stack_new[2 * i] = new poly(this->poly_degree);
-                    mem_stack_new[2 * i]->coeff = mem_y_new[i]->ciphertext[0]->coeff;
-                    mem_stack_new[2 * i + 1]= new poly(this->poly_degree);
-                    mem_stack_new[2 * i + 1]->coeff = mem_y_new[i]->ciphertext[1]->coeff;
+                    this->mem_stack_new[2 * i]->coeff = mem_y_new[i]->ciphertext[0]->coeff;
+                    this->mem_stack_new[2 * i + 1]->coeff = mem_y_new[i]->ciphertext[1]->coeff;
 
-                    mem_stack_pre[2 * i] = new poly(this->poly_degree);
-                    mem_stack_pre[2 * i]->coeff = mem_y_pre[i]->ciphertext[0]->coeff;
-                    mem_stack_pre[2 * i + 1] = new poly(this->poly_degree);
-                    mem_stack_pre[2 * i + 1]->coeff = mem_y_pre[i]->ciphertext[1]->coeff;
+                    this->mem_stack_pre[2 * i]->coeff = mem_y_pre[i]->ciphertext[0]->coeff;
+                    this->mem_stack_pre[2 * i + 1]->coeff = mem_y_pre[i]->ciphertext[1]->coeff;
                 }
                 else
                 {
-                    mem_stack_new[2 * i] = new poly(this->poly_degree);
-                    mem_stack_new[2 * i]->coeff = mem_u_new[i - 4]->ciphertext[0]->coeff;
-                    mem_stack_new[2 * i + 1]= new poly(this->poly_degree);
-                    mem_stack_new[2 * i + 1]->coeff = mem_u_new[i - 4]->ciphertext[1]->coeff;
+                    this->mem_stack_new[2 * i]->coeff = mem_u_new[i - 4]->ciphertext[0]->coeff;
+                    this->mem_stack_new[2 * i + 1]->coeff = mem_u_new[i - 4]->ciphertext[1]->coeff;
 
-                    mem_stack_pre[2 * i] = new poly(this->poly_degree);
-                    mem_stack_pre[2 * i]->coeff = mem_u_pre[i - 4]->ciphertext[0]->coeff;
-                    mem_stack_pre[2 * i + 1] = new poly(this->poly_degree);
-                    mem_stack_pre[2 * i + 1]->coeff = mem_u_pre[i - 4]->ciphertext[1]->coeff;
+                    this->mem_stack_pre[2 * i]->coeff = mem_u_pre[i - 4]->ciphertext[0]->coeff;
+                    this->mem_stack_pre[2 * i + 1]->coeff = mem_u_pre[i - 4]->ciphertext[1]->coeff;
                 }
             }
 
             if(this->timing)
             { 
                 // this is odd section
-                poly* arx_state_even = poly_handler::poly_recur_concat(mem_stack_new);
-                poly* arx_state_odd = poly_handler::poly_recur_concat(mem_stack_pre);
+                poly_handler::poly_cascade_concat(this->mem_stack_new, this->arx_state_even);
+                poly_handler::poly_cascade_concat(this->mem_stack_pre, this->arx_state_odd);
                 group_handler::group_dot(this->g_r_1, arx_state_even, this->odd_nu[0]);
                 group_handler::group_dot(this->g_gamma_1_r_1, arx_state_even, this->odd_nu[1]);
                 group_handler::group_dot(this->g_alpha_1_r_1_F_r_0_m, arx_state_odd, this->odd_nu[2]);
                 group_handler::group_dot(this->g_r_1_F_r_0_m, arx_state_odd, this->odd_nu[3]);
                 group_handler::group_dot(this->g_beta_1_s_H_r_0_m, arx_state_odd, this->odd_mu[0]);
                 group_handler::group_dot(this->g_s_H_r_0_m, arx_state_odd, this->odd_mu[1]);
-
-                delete arx_state_even;
-                delete arx_state_odd;
             }
             else
             {
                 // this is even section
-                poly* arx_state_odd = poly_handler::poly_recur_concat(mem_stack_new);
-                poly* arx_state_even = poly_handler::poly_recur_concat(mem_stack_pre);
+                poly_handler::poly_cascade_concat(this->mem_stack_new, this->arx_state_odd);
+                poly_handler::poly_cascade_concat(this->mem_stack_pre, this->arx_state_even);
                 group_handler::group_dot(this->g_r_0, arx_state_odd, this->even_nu[0]);
                 group_handler::group_dot(this->g_gamma_0_r_0, arx_state_odd, this->even_nu[1]);
                 group_handler::group_dot(this->g_alpha_0_r_0_F_r_1_m, arx_state_even, this->even_nu[2]);
                 group_handler::group_dot(this->g_r_0_F_r_1_m, arx_state_even, this->even_nu[3]);
                 group_handler::group_dot(this->g_beta_0_s_H_r_1_m, arx_state_even, this->even_mu[0]);
                 group_handler::group_dot(this->g_s_H_r_1_m, arx_state_even, this->even_mu[1]);
-
-                delete arx_state_odd;
-                delete arx_state_even;
             }
-
-            for(auto& factor : mem_stack_new)
-            {
-                if(factor != nullptr)
-                {
-                    delete factor;
-                    factor = nullptr;
-                }
-            }
-            mem_stack_new.clear();
-            for(auto& factor : mem_stack_pre)
-            {
-                if(factor != nullptr)
-                {
-                    delete factor;
-                    factor = nullptr;
-                }
-            }
-            mem_stack_pre.clear();
         }
 
         bool verifying_proof(cipher* y, cipher* u_re_enc, cipher* u, mpz_class& previous_pf)
         {
-            poly* Y = poly_handler::poly_recur_concat(y->ciphertext);
-            poly* U_re = poly_handler::poly_recur_concat(u_re_enc->ciphertext);
-            poly* U = poly_handler::poly_recur_concat(u->ciphertext);
+            poly_handler::poly_cascade_concat(y->ciphertext, this->Y);
+            poly_handler::poly_cascade_concat(u_re_enc->ciphertext, this->U_re);
+            poly_handler::poly_cascade_concat(u->ciphertext, this->U);
             
             bool check = false;
 
@@ -560,10 +572,6 @@ class authentic
                     check = true;
                 }
             }
-
-            delete Y;
-            delete U_re;
-            delete U;
 
             previous_pf = this->timing ? this->odd_nu[0] : this->even_nu[0];
             this->timing = !this->timing;

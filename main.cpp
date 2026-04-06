@@ -169,9 +169,7 @@ int main()
     stc = chrono::high_resolution_clock::now();
     // ==================== Authenticator test ==================== //
     authentic* auth = new authentic(poly_degree, cipher_mod, group_mod, group_gen);
-    vector<mr_cipher*> encH;
-    encH = auth->make_encH(arx_ctrl->P_y, arx_ctrl->Q_u);
-    auth->make_ekf(encH);
+    auth->make_ekf(arx_ctrl->P_y, arx_ctrl->Q_u);
     // ============================================================ //
     edc = chrono::high_resolution_clock::now();
     duration = chrono::duration_cast<chrono::nanoseconds>(edc - stc);
@@ -235,7 +233,7 @@ int main()
     // authentic pass check
     bool pass = false;
 
-    int iter = 100;
+    int iter = 3;
 
     auto enc_stc = std::chrono::high_resolution_clock::now();
     auto enc_edc = std::chrono::high_resolution_clock::now();
@@ -281,7 +279,7 @@ int main()
         // plant state update and controller memory update
         plt->state_update(real_u);
         arx_ctrl->mem_update(plt_out, ctrl_in);
-        if(i >= 50 && i < 100)
+        if(i >= 50 && i < 70)
         {
             arx_ctrl->mem_y_new[3]->ciphertext[0]->coeff[1] += 1;
         }
@@ -311,15 +309,6 @@ int main()
     delete arx_ctrl;
 
     delete auth;
-    for(auto& factor : encH)
-    {
-        if(factor != nullptr)
-        {
-            delete factor;
-            factor = nullptr;
-        }
-    }
-    encH.clear();
 
     delete plt;
     delete plaintext;

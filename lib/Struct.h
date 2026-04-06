@@ -108,6 +108,34 @@ class poly_handler
             return res;
         }
 
+        static int poly_cascade_concat(std::vector<poly*> op, poly* res)
+        {
+            int size = 0;
+            for(int i = 0; i < op.size(); i++)
+            {
+                size += op[i]->ring_dim;
+            }
+
+            if(size != res->ring_dim)
+            {
+                return -1;
+            }
+            else
+            {
+                int stack = 0;
+
+                for(int i = 0; i < op.size(); i++)
+                {
+                    for(int j = 0; j < op[i]->ring_dim; j++)
+                    {
+                        res->coeff[j + stack] = op[i]->coeff[j];
+                    }
+                    stack += op[i]->ring_dim;
+                }
+                return 0;
+            }
+        }
+
         static int pack_2_plain(poly* op, poly* res)
         {
             if(op->ring_dim != res->ring_dim)
