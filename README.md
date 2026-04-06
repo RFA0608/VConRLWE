@@ -6,7 +6,7 @@ Verification of attacks is the primary purpose, and verification in encrypted st
 For the linear control system, the BGV type RLWE ciphertext is calculated and verified, time comparison, and efficiency are simulated. 
 The modulus q of RLWE's ciphertext is implemented using a big integrer rather than a level concept, and calculation verification is performed in a field of the same size as the modulus of the ciphertext.
 
-**⚠️CRITICAL: This code need around 90GB memory(RAM) space.**
+**⚠️CRITICAL: This code need around 90GB memory(RAM) space. (now this solved)**
 
 ## 0️⃣Pre-ready
 If you want to use this repository, need to install WSL2 on Windows. 
@@ -97,6 +97,7 @@ If you want to leakage of memory please use below cmd
 ### 260406
 1. Optimize Memory.
 2. Add cascade_concat function.
+3. Delete calculation structure of matrix representation.
 
 # Present task
-End of DEV. ,now doing optimization.
+End of DEV.
