@@ -887,6 +887,84 @@ class crypto_handler
                 return 0;
             }
         }
+
+        static int pval_mrlike_mul(poly* op1, cipher* op2, poly* res)
+        {
+            if(op1->ring_dim != 3 * op2->ring_dim || res->ring_dim != 2 * op2->ring_dim)
+            {
+                return -1;
+            }
+            else
+            {
+                poly* s1 = new poly(op2->ring_dim);
+                for(int i = 0; i < op2->ring_dim; i++)
+                {
+                    s1->coeff[i] = op1->coeff[i];
+                }
+                poly* s2 = new poly(op2->ring_dim);
+                for(int i = 0; i < op2->ring_dim; i++)
+                {
+                    s2->coeff[i] = op1->coeff[i + op2->ring_dim];
+                }
+                poly* s3 = new poly(op2->ring_dim);
+                for(int i = 0; i < op2->ring_dim; i++)
+                {
+                    s3->coeff[i] = op1->coeff[i + 2 * op2->ring_dim];
+                }
+                poly* temp_res1 = new poly(op2->ring_dim);
+                poly* temp_res2 = new poly(op2->ring_dim);
+
+                poly* res1 = new poly(op2->ring_dim);
+                poly* res2 = new poly(op2->ring_dim);
+
+                cipher* clone1 = op2->clone();
+                cipher* clone2 = op2->clone();
+
+                for(int i = 0; i < op2->ring_dim; i++)
+                {
+                    poly_handler::poly_dot(s1, clone1->ciphertext[0], temp_res1->coeff[i]);
+                    poly_handler::poly_negacyclic_shifter(clone1->ciphertext[0]);
+                }
+                for(int i = 0; i < op2->ring_dim; i++)
+                {
+                    poly_handler::poly_dot(s2, clone1->ciphertext[1], temp_res2->coeff[i]);
+                    poly_handler::poly_negacyclic_shifter(clone1->ciphertext[1]);
+                }
+                poly_handler::poly_add(temp_res1, temp_res2, res1);
+                poly_handler::poly_mod(res1, op2->cipher_mod, res1);
+
+                for(int i = 0; i < op2->ring_dim; i++)
+                {
+                    poly_handler::poly_dot(s2, clone2->ciphertext[0], temp_res1->coeff[i]);
+                    poly_handler::poly_negacyclic_shifter(clone2->ciphertext[0]);
+                }
+                for(int i = 0; i < op2->ring_dim; i++)
+                {
+                    poly_handler::poly_dot(s3, clone2->ciphertext[1], temp_res2->coeff[i]);
+                    poly_handler::poly_negacyclic_shifter(clone2->ciphertext[1]);
+                }
+                poly_handler::poly_add(temp_res1, temp_res2, res2);
+                poly_handler::poly_mod(res2, op2->cipher_mod, res2);
+
+                poly_handler::poly_concat(res1, res2, res);
+                
+                delete s1;
+                delete s2;
+                delete s3;
+
+                delete temp_res1;
+                delete temp_res2;
+
+                delete res1;
+                delete res2;
+
+                delete clone1;
+                delete clone2;
+
+                return 0;
+            }
+        }
+
 };
 
 #endif

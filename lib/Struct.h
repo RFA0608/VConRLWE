@@ -273,6 +273,23 @@ class poly_handler
             }
         }
 
+        static int poly_dot(poly* op1, poly* op2, mpz_class& res)
+        {
+            if(op1->ring_dim != op2->ring_dim)
+            {
+                return -1;
+            }
+            else
+            {
+                res = 0;
+                for(int i = 0; i < op1->ring_dim; i++)
+                {
+                    res += op1->coeff[i] * op2->coeff[i];
+                }
+                return 0;
+            }
+        }
+
         static int poly_mod(poly* op, const mpz_class& mod, poly* res)
         {
             if(op->ring_dim != res->ring_dim)
@@ -312,6 +329,20 @@ class poly_handler
                     }
                 }
 
+                return 0;
+            }
+        }
+
+        static int poly_negacyclic_shifter(poly* res)
+        {
+            if(res->coeff.empty())
+            {
+                return -1;
+            }
+            else
+            {
+                std::rotate(res->coeff.rbegin(), res->coeff.rbegin() + 1, res->coeff.rend());
+                res->coeff[0] = - res->coeff[0];
                 return 0;
             }
         }

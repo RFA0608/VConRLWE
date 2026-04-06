@@ -346,24 +346,26 @@ class authentic
             delete temp_r_1_R;
 
             // beta_0(s*H - r_1), (s*H - r_1), beta_1(s*H - r_0), (s*H - r_0), respectively
-            mr_cipher* comp_H_enc_mat =  new mr_cipher(P_enc[0]->ring_dim, P_enc[0]->plain_mod, P_enc[0]->cipher_mod);
+            // mr_cipher* comp_H_enc_mat =  new mr_cipher(P_enc[0]->ring_dim, P_enc[0]->plain_mod, P_enc[0]->cipher_mod);
             std::vector<poly*> temp_sH(8);
             for(int i = 0; i < 8; i++)
             {
                 temp_sH[i] = new poly(2 * this->poly_degree);
                 if(i < 4)
                 {
-                    format_transform_handler::cipher_2_mr_cipher(P_enc[i], comp_H_enc_mat);
-                    crypto_handler::pval_mr_mul(this->s, comp_H_enc_mat, temp_sH[i]);
+                    // format_transform_handler::cipher_2_mr_cipher(P_enc[i], comp_H_enc_mat);
+                    // crypto_handler::pval_mr_mul(this->s, comp_H_enc_mat, temp_sH[i]);
+                    crypto_handler::pval_mrlike_mul(this->s, P_enc[i], temp_sH[i]);
                 }
                 else
                 {
-                    format_transform_handler::cipher_2_mr_cipher(Q_enc[i - 4], comp_H_enc_mat);
-                    crypto_handler::pval_mr_mul(this->s, comp_H_enc_mat, temp_sH[i]);
+                    // format_transform_handler::cipher_2_mr_cipher(Q_enc[i - 4], comp_H_enc_mat);
+                    // crypto_handler::pval_mr_mul(this->s, comp_H_enc_mat, temp_sH[i]);
+                    crypto_handler::pval_mrlike_mul(this->s, Q_enc[i - 4], temp_sH[i]);
                 }
             }
 
-            delete comp_H_enc_mat;
+            // delete comp_H_enc_mat;
 
             poly* sH = poly_handler::poly_recur_concat(temp_sH);
 
