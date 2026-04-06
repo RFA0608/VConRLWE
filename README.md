@@ -96,5 +96,5 @@ If you want to leakage of memory please use below cmd
 1. Optimize Memory.
 2. Add cascade_concat function.
 
-# 완성율
+# Present task
 End of DEV. ,now doing optimization.
