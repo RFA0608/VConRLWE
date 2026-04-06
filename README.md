@@ -2,6 +2,10 @@
 This code is a test code for cryptographic operations and verification processes in large integer environments using gmp. 
 Verification of attacks is the primary purpose, and verification in encrypted state is implemented.
 
+## Description
+For the linear control system, the BGV type RLWE ciphertext is calculated and verified, time comparison, and efficiency are simulated. 
+The modulus q of RLWE's ciphertext is implemented using a big integrer rather than a level concept, and calculation verification is performed in a field of the same size as the modulus of the ciphertext.
+
 ## 0️⃣Pre-ready
 If you want to use this repository, need to install WSL2 on Windows. 
 This recommand Ubuntu24-04 LTS version.
