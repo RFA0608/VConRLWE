@@ -233,7 +233,7 @@ int main()
     // authentic pass check
     bool pass = false;
 
-    int iter = 20;
+    int iter = 150;
 
     // CSV save
     FILE* ps = fopen("date(y1_y2_u_vc_enct_vct).csv", "w");
