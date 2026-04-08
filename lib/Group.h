@@ -152,7 +152,18 @@ class group_handler
                 #pragma omp parallel for
                 for(int i = 0; i < op1->size; i++)
                 {
-                    mpz_powm(temp[i].get_mpz_t(), op1->vec[i].get_mpz_t(), op2->coeff[i].get_mpz_t(), op1->g_mod.get_mpz_t());
+                    if(op2->coeff[i] == 0)
+                    {
+                        temp[i] = 1;
+                    }
+                    else if(op2->coeff[i] == 1)
+                    {
+                        temp[i] = op1->vec[i] %  op1->g_mod;
+                    }
+                    else
+                    {
+                        mpz_powm(temp[i].get_mpz_t(), op1->vec[i].get_mpz_t(), op2->coeff[i].get_mpz_t(), op1->g_mod.get_mpz_t());
+                    }   
                 }
 
                 for(int i = 0; i < op1->size; i++)
