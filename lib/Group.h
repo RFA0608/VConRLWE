@@ -2,6 +2,7 @@
 #define GROUP_H
 
 #include "Struct.h"
+#include <omp.h>
 
 // ================================================================================ //
 //                                  Group Structure                                 //
