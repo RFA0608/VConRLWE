@@ -138,42 +138,84 @@ class group_handler
             }
         }
 
+        // static int group_dot(gvec* op1, poly* op2, mpz_class& res)
+        // {
+        //     if(op1->size != op2->ring_dim)
+        //     {
+        //         return -1;
+        //     }
+        //     else
+        //     {
+        //         std::vector<mpz_class> temp(op1->size);
+        //         res = 1;
+
+        //         #pragma omp parallel for
+        //         for(int i = 0; i < op1->size; i++)
+        //         {
+        //             if(op2->coeff[i] == 0)
+        //             {
+        //                 temp[i] = 1;
+        //             }
+        //             else if(op2->coeff[i] == 1)
+        //             {
+        //                 temp[i] = op1->vec[i] %  op1->g_mod;
+        //             }
+        //             else
+        //             {
+        //                 mpz_powm(temp[i].get_mpz_t(), op1->vec[i].get_mpz_t(), op2->coeff[i].get_mpz_t(), op1->g_mod.get_mpz_t());
+        //             }   
+        //         }
+
+        //         for(int i = 0; i < op1->size; i++)
+        //         {
+        //             res *= temp[i];
+        //             res %= op1->g_mod;
+        //         }
+
+        //         return 0;
+        //     }
+        // }
+
         static int group_dot(gvec* op1, poly* op2, mpz_class& res)
         {
-            if(op1->size != op2->ring_dim)
+            if(op1->size != op2->ring_dim) 
             {
                 return -1;
             }
-            else
+            
+            res = 1;
+            int num_threads = omp_get_max_threads();
+            std::vector<mpz_class> thread_results(num_threads, 1);
+
+            #pragma omp parallel
             {
-                std::vector<mpz_class> temp(op1->size);
-                res = 1;
+                int tid = omp_get_thread_num();
+                mpz_class local_res = 1;
+                mpz_class p_res;
 
-                #pragma omp parallel for
+                #pragma omp for
                 for(int i = 0; i < op1->size; i++)
                 {
-                    if(op2->coeff[i] == 0)
-                    {
-                        temp[i] = 1;
+                    const mpz_class& exp = op2->coeff[i];
+                    
+                    if(exp == 0) continue;
+                    
+                    if(exp == 1) {
+                        local_res = (local_res * op1->vec[i]) % op1->g_mod;
                     }
-                    else if(op2->coeff[i] == 1)
-                    {
-                        temp[i] = op1->vec[i] %  op1->g_mod;
+                    else {
+                        mpz_powm(p_res.get_mpz_t(), op1->vec[i].get_mpz_t(), exp.get_mpz_t(), op1->g_mod.get_mpz_t());
+                        local_res = (local_res * p_res) % op1->g_mod;
                     }
-                    else
-                    {
-                        mpz_powm(temp[i].get_mpz_t(), op1->vec[i].get_mpz_t(), op2->coeff[i].get_mpz_t(), op1->g_mod.get_mpz_t());
-                    }   
                 }
-
-                for(int i = 0; i < op1->size; i++)
-                {
-                    res *= temp[i];
-                    res %= op1->g_mod;
-                }
-
-                return 0;
+                thread_results[tid] = local_res;
             }
+
+            for(int i = 0; i < num_threads; i++) {
+                res = (res * thread_results[i]) % op1->g_mod;
+            }
+
+            return 0;
         }
 };
 
