@@ -13,6 +13,27 @@ If you want to use this repository, need to install WSL2 on Windows.
 This recommand Ubuntu24-04 LTS version.
 On Linux system(**NOT** WSL), naturaly can run.
 
+### GMP installation
+GMP source download and unzip
+``` bash
+  wget https://gmplib.org/download/gmp/gmp-6.3.0.tar.xz
+  tar -xf gmp-6.3.0.tar.xz
+  cd gmp-6.3.0
+```
+
+Setting gmp builder
+``` bash
+  sudo apt-get install -y build-essential m4 g++
+  ./configure --enable-cxx
+```
+
+Installation
+``` bash
+  make -j$(nproc)
+  sudo make install
+  sudo ldconfig
+```
+
 ## 1️⃣Make binary
 Push below command on your CMD(bash), respectively.
 
@@ -21,7 +42,7 @@ Push below command on your CMD(bash), respectively.
 ```
 
 ```bash
-  make
+  make -j$(nproc)
 ```
 
 ## 2️⃣Run
