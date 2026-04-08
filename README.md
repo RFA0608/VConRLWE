@@ -26,7 +26,7 @@ Push below command on your CMD(bash), respectively.
 
 ## 2️⃣Run
 ```bash
-  ./main
+  OMP_PROC_BIND=true OMP_PLACES=cores ./main
 ```
 
 If you want to leakage of memory please use below cmd
