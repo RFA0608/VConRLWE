@@ -121,4 +121,6 @@ If you want to leakage of memory please use below cmd
 3. Delete calculation structure of matrix representation.
 
 # Present task
-End of DEV.
+~~End of DEV.~~
+1. Make ECC dot product.
+2. Make ECC scalar mul.
