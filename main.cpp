@@ -166,24 +166,8 @@ int main()
     run_time = duration.count() / 1000000;
     cout << "controller encryption time: " << run_time << "ms" << endl;
 
-    // TEMP!!!!!!!!!!
-    // auto ec_stc = std::chrono::high_resolution_clock::now();
-    // poly* skt = new poly(poly_degree * 16);
-    // random_handler::secret_key(skt);
-    // eccvec* table = new eccvec(256);
-    // eccvec* eck1 = new eccvec(16384 * 16);
-    // eccvec* eck2 = new eccvec(16384 * 16);
-    // ecc_handler::table_set(table);
-    // ecc_handler::poly_2_ecc(skt , table, eck1);
-    // ecc_handler::ecc_mul(eck1, skt, eck2);
+
     
-    // auto ec_edc = std::chrono::high_resolution_clock::now();
-    // auto ec_duration = chrono::duration_cast<chrono::nanoseconds>(ec_edc - ec_stc);
-    // double ec_run_time = ec_duration.count() / 1000000.0;
-    // cout << ec_run_time << endl;
-    // return 0;
-
-
     stc = chrono::high_resolution_clock::now();
     // ==================== Authenticator test ==================== //
     authentic* auth = new authentic(poly_degree, cipher_mod, group_mod, group_gen);
