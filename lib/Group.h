@@ -199,16 +199,12 @@ class group_handler
                 {
                     const mpz_class& exp = op2->coeff[i];
                     
-                    if(exp == 0) 
-                    {
-                        continue;
-                    }
-                    else if(exp == 1) 
-                    {
+                    if(exp == 0) continue;
+                    
+                    if(exp == 1) {
                         local_res = (local_res * op1->vec[i]) % op1->g_mod;
                     }
-                    else 
-                    {
+                    else {
                         mpz_powm(p_res.get_mpz_t(), op1->vec[i].get_mpz_t(), exp.get_mpz_t(), op1->g_mod.get_mpz_t());
                         local_res = (local_res * p_res) % op1->g_mod;
                     }

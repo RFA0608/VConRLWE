@@ -9,6 +9,7 @@
 #include "./lib/Group.h"
 #include "./lib/Authentic.h"
 #include "./lib/Control.h"
+#include "./lib/ECC.h"
 
 using namespace std;
 
@@ -42,6 +43,7 @@ int main()
 
     mpz_class cipher_mod;
     prime_handler::find_ntt_prime(poly_degree, cipher_bits, cipher_mod);
+    // cipher_mod = "28948022309329048855892746252171976963363056481941647379679742748393362948097"; // if you want to use ECC structure.
     mpz_class psi_c;
     prime_handler::find_ntt_root(poly_degree, cipher_mod, psi_c);
 
@@ -164,6 +166,22 @@ int main()
     run_time = duration.count() / 1000000;
     cout << "controller encryption time: " << run_time << "ms" << endl;
 
+    // TEMP!!!!!!!!!!
+    // auto ec_stc = std::chrono::high_resolution_clock::now();
+    // poly* skt = new poly(poly_degree * 16);
+    // random_handler::secret_key(skt);
+    // eccvec* table = new eccvec(256);
+    // eccvec* eck1 = new eccvec(16384 * 16);
+    // eccvec* eck2 = new eccvec(16384 * 16);
+    // ecc_handler::table_set(table);
+    // ecc_handler::poly_2_ecc(skt , table, eck1);
+    // ecc_handler::ecc_mul(eck1, skt, eck2);
+    
+    // auto ec_edc = std::chrono::high_resolution_clock::now();
+    // auto ec_duration = chrono::duration_cast<chrono::nanoseconds>(ec_edc - ec_stc);
+    // double ec_run_time = ec_duration.count() / 1000000.0;
+    // cout << ec_run_time << endl;
+    // return 0;
 
 
     stc = chrono::high_resolution_clock::now();
@@ -246,13 +264,13 @@ int main()
 
     auto enc_stc = std::chrono::high_resolution_clock::now();
     auto enc_edc = std::chrono::high_resolution_clock::now();
-    auto enc_duration = chrono::duration_cast<chrono::nanoseconds>(edc - stc);
-    double enc_run_time = duration.count() / 1000000;
+    auto enc_duration = chrono::duration_cast<chrono::nanoseconds>(enc_edc - enc_stc);
+    double enc_run_time = enc_duration.count() / 1000000;
 
     auto vc_stc = std::chrono::high_resolution_clock::now();
     auto vc_edc = std::chrono::high_resolution_clock::now();
-    auto vc_duration = chrono::duration_cast<chrono::nanoseconds>(edc - stc);
-    double vc_run_time = duration.count() / 1000000;
+    auto vc_duration = chrono::duration_cast<chrono::nanoseconds>(vc_edc - vc_stc);
+    double vc_run_time = vc_duration.count() / 1000000;
 
     for(int i = 0; i < iter; i++)
     {

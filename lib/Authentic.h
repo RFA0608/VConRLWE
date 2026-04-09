@@ -501,15 +501,15 @@ class authentic
                 group_handler::group_dot(this->g_r_1_G, Y, vc1);
                 group_handler::group_dot(this->g_r_1_R, U_re, vc2);
                 group_handler::group_dot(this->g_s, U, vc3);
-                vc3 = (vc3) % g_mod;
+                vc3 = ((vc3) % g_mod + g_mod) % g_mod;
 
                 mpz_powm(pf1.get_mpz_t(), this->odd_nu[0].get_mpz_t(), this->gamma_1->coeff[0].get_mpz_t(), this->g_mod.get_mpz_t());
                 mpz_powm(pf2.get_mpz_t(), this->odd_nu[3].get_mpz_t(), this->alpha_1->coeff[0].get_mpz_t(), this->g_mod.get_mpz_t());
                 mpz_powm(pf3.get_mpz_t(), this->odd_mu[1].get_mpz_t(), this->beta_1->coeff[0].get_mpz_t(), this->g_mod.get_mpz_t());
                 pf4 = (this->odd_nu[3] * previous_pf) % this->g_mod;
                 pf4 = (pf4 * vc1) % this->g_mod;
-                pf4 = (pf4 * vc2) % this->g_mod;
-                pf5 = (this->odd_mu[1] * previous_pf) % this->g_mod;
+                pf4 = ((pf4 * vc2) % this->g_mod + this->g_mod) % this->g_mod;
+                pf5 = ((this->odd_mu[1] * previous_pf) % this->g_mod + this->g_mod) % this->g_mod;
 
                 if(
                     pf1 != this->odd_nu[1] ||
@@ -542,15 +542,15 @@ class authentic
                 group_handler::group_dot(this->g_r_0_G, Y, vc1);
                 group_handler::group_dot(this->g_r_0_R, U_re, vc2);
                 group_handler::group_dot(this->g_s, U, vc3);
-                vc3 = (vc3) % g_mod;
+                vc3 = ((vc3) % g_mod + g_mod) % g_mod;
 
                 mpz_powm(pf1.get_mpz_t(), this->even_nu[0].get_mpz_t(), this->gamma_0->coeff[0].get_mpz_t(), this->g_mod.get_mpz_t());
                 mpz_powm(pf2.get_mpz_t(), this->even_nu[3].get_mpz_t(), this->alpha_0->coeff[0].get_mpz_t(), this->g_mod.get_mpz_t());
                 mpz_powm(pf3.get_mpz_t(), this->even_mu[1].get_mpz_t(), this->beta_0->coeff[0].get_mpz_t(), this->g_mod.get_mpz_t());
                 pf4 = (this->even_nu[3] * previous_pf) % this->g_mod;
                 pf4 = (pf4 * vc1) % this->g_mod;
-                pf4 = (pf4 * vc2) % this->g_mod;
-                pf5 = (this->even_mu[1] * previous_pf) % this->g_mod;
+                pf4 = ((pf4 * vc2) % this->g_mod + this->g_mod) % this->g_mod;
+                pf5 = ((this->even_mu[1] * previous_pf) % this->g_mod + this->g_mod) % this->g_mod;
 
                 if(
                     pf1 != this->even_nu[1] ||
