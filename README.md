@@ -120,8 +120,11 @@ If you want to leakage of memory please use below cmd
 2. Add cascade_concat function.
 3. Delete calculation structure of matrix representation.
 
-# Present task
-~~End of DEV.~~
+### 260410
 1. Modify ECC.h page
 2. Make ECC dot product.
 3. Make ECC scalar mul.
+
+# Present task
+~~End of DEV.~~
+1. Make ECC jacobi coordinate change
