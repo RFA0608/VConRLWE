@@ -1068,30 +1068,24 @@ class authentic_ecc
                 // this is odd section
                 poly_handler::poly_cascade_concat(this->mem_stack_new, this->arx_state_even);
                 poly_handler::poly_cascade_concat(this->mem_stack_pre, this->arx_state_odd);
-                #pragma omp parallel
-                {
-                    ecc_handler::ecc_dot(this->ecc_r_1, arx_state_even, this->odd_nu[0]);
-                    ecc_handler::ecc_dot(this->ecc_gamma_1_r_1, arx_state_even, this->odd_nu[1]);
-                    ecc_handler::ecc_dot(this->ecc_alpha_1_r_1_F_r_0_m, arx_state_odd, this->odd_nu[2]);
-                    ecc_handler::ecc_dot(this->ecc_r_1_F_r_0_m, arx_state_odd, this->odd_nu[3]);
-                    ecc_handler::ecc_dot(this->ecc_beta_1_s_H_r_0_m, arx_state_odd, this->odd_mu[0]);
-                    ecc_handler::ecc_dot(this->ecc_s_H_r_0_m, arx_state_odd, this->odd_mu[1]);
-                }
+                ecc_handler::ecc_dot(this->ecc_r_1, arx_state_even, this->odd_nu[0]);
+                ecc_handler::ecc_dot(this->ecc_gamma_1_r_1, arx_state_even, this->odd_nu[1]);
+                ecc_handler::ecc_dot(this->ecc_alpha_1_r_1_F_r_0_m, arx_state_odd, this->odd_nu[2]);
+                ecc_handler::ecc_dot(this->ecc_r_1_F_r_0_m, arx_state_odd, this->odd_nu[3]);
+                ecc_handler::ecc_dot(this->ecc_beta_1_s_H_r_0_m, arx_state_odd, this->odd_mu[0]);
+                ecc_handler::ecc_dot(this->ecc_s_H_r_0_m, arx_state_odd, this->odd_mu[1]);
             }
             else
             {
                 // this is even section
                 poly_handler::poly_cascade_concat(this->mem_stack_new, this->arx_state_odd);
                 poly_handler::poly_cascade_concat(this->mem_stack_pre, this->arx_state_even);
-                #pragma omp parallel
-                {
-                    ecc_handler::ecc_dot(this->ecc_r_0, arx_state_odd, this->even_nu[0]);
-                    ecc_handler::ecc_dot(this->ecc_gamma_0_r_0, arx_state_odd, this->even_nu[1]);
-                    ecc_handler::ecc_dot(this->ecc_alpha_0_r_0_F_r_1_m, arx_state_even, this->even_nu[2]);
-                    ecc_handler::ecc_dot(this->ecc_r_0_F_r_1_m, arx_state_even, this->even_nu[3]);
-                    ecc_handler::ecc_dot(this->ecc_beta_0_s_H_r_1_m, arx_state_even, this->even_mu[0]);
-                    ecc_handler::ecc_dot(this->ecc_s_H_r_1_m, arx_state_even, this->even_mu[1]);
-                }
+                ecc_handler::ecc_dot(this->ecc_r_0, arx_state_odd, this->even_nu[0]);
+                ecc_handler::ecc_dot(this->ecc_gamma_0_r_0, arx_state_odd, this->even_nu[1]);
+                ecc_handler::ecc_dot(this->ecc_alpha_0_r_0_F_r_1_m, arx_state_even, this->even_nu[2]);
+                ecc_handler::ecc_dot(this->ecc_r_0_F_r_1_m, arx_state_even, this->even_nu[3]);
+                ecc_handler::ecc_dot(this->ecc_beta_0_s_H_r_1_m, arx_state_even, this->even_mu[0]);
+                ecc_handler::ecc_dot(this->ecc_s_H_r_1_m, arx_state_even, this->even_mu[1]);
             }
         }
 
@@ -1109,13 +1103,9 @@ class authentic_ecc
                 point vc1, vc2, vc3;
                 point pf1, pf2, pf3, pf4, pf5;
                 
-
-                #pragma omp parallel
-                {
-                    ecc_handler::ecc_dot(this->ecc_r_1_G, Y, vc1);
-                    ecc_handler::ecc_dot(this->ecc_r_1_R, U_re, vc2);
-                    ecc_handler::ecc_dot(this->ecc_s, U, vc3);
-                }
+                ecc_handler::ecc_dot(this->ecc_r_1_G, Y, vc1);
+                ecc_handler::ecc_dot(this->ecc_r_1_R, U_re, vc2);
+                ecc_handler::ecc_dot(this->ecc_s, U, vc3);
 
                 ecc_handler::point_mul(this->odd_nu[0], this->gamma_1->coeff[0], pf1, this->ecc_mod);
                 ecc_handler::point_mul(this->odd_nu[3], this->alpha_1->coeff[0], pf2, this->ecc_mod);
@@ -1153,12 +1143,9 @@ class authentic_ecc
                 point vc1, vc2, vc3;
                 point pf1, pf2, pf3, pf4, pf5;
 
-                #pragma omp parallel
-                {
-                    ecc_handler::ecc_dot(this->ecc_r_0_G, Y, vc1);
-                    ecc_handler::ecc_dot(this->ecc_r_0_R, U_re, vc2);
-                    ecc_handler::ecc_dot(this->ecc_s, U, vc3);
-                }
+                ecc_handler::ecc_dot(this->ecc_r_0_G, Y, vc1);
+                ecc_handler::ecc_dot(this->ecc_r_0_R, U_re, vc2);
+                ecc_handler::ecc_dot(this->ecc_s, U, vc3);
 
                 ecc_handler::point_mul(this->even_nu[0], this->gamma_0->coeff[0], pf1, this->ecc_mod);
                 ecc_handler::point_mul(this->even_nu[3], this->alpha_0->coeff[0], pf2, this->ecc_mod);
