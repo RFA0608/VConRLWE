@@ -464,52 +464,25 @@ class authentic
                 // this is odd section
                 poly_handler::poly_cascade_concat(this->mem_stack_new, this->arx_state_even);
                 poly_handler::poly_cascade_concat(this->mem_stack_pre, this->arx_state_odd);
-                #pragma omp parallel sections
-                {
-                    #pragma omp section
-                    group_handler::group_dot(this->g_r_1, arx_state_even, this->odd_nu[0]);
+                group_handler::group_dot(this->g_r_1, arx_state_even, this->odd_nu[0]);
+                group_handler::group_dot(this->g_gamma_1_r_1, arx_state_even, this->odd_nu[1]);
+                group_handler::group_dot(this->g_alpha_1_r_1_F_r_0_m, arx_state_odd, this->odd_nu[2]);
+                group_handler::group_dot(this->g_r_1_F_r_0_m, arx_state_odd, this->odd_nu[3]);
 
-                    #pragma omp section
-                    group_handler::group_dot(this->g_gamma_1_r_1, arx_state_even, this->odd_nu[1]);
-
-                    #pragma omp section
-                    group_handler::group_dot(this->g_alpha_1_r_1_F_r_0_m, arx_state_odd, this->odd_nu[2]);
-
-                    #pragma omp section
-                    group_handler::group_dot(this->g_r_1_F_r_0_m, arx_state_odd, this->odd_nu[3]);
-
-                    #pragma omp section
-                    group_handler::group_dot(this->g_beta_1_s_H_r_0_m, arx_state_odd, this->odd_mu[0]);
-
-                    #pragma omp section
-                    group_handler::group_dot(this->g_s_H_r_0_m, arx_state_odd, this->odd_mu[1]);
-                }
+                group_handler::group_dot(this->g_beta_1_s_H_r_0_m, arx_state_odd, this->odd_mu[0]);
+                group_handler::group_dot(this->g_s_H_r_0_m, arx_state_odd, this->odd_mu[1]);
             }
             else
             {
                 // this is even section
                 poly_handler::poly_cascade_concat(this->mem_stack_new, this->arx_state_odd);
                 poly_handler::poly_cascade_concat(this->mem_stack_pre, this->arx_state_even);
-                #pragma omp parallel sections
-                {
-                    #pragma omp section
-                    group_handler::group_dot(this->g_r_0, arx_state_odd, this->even_nu[0]);
-
-                    #pragma omp section
-                    group_handler::group_dot(this->g_gamma_0_r_0, arx_state_odd, this->even_nu[1]);
-
-                    #pragma omp section
-                    group_handler::group_dot(this->g_alpha_0_r_0_F_r_1_m, arx_state_even, this->even_nu[2]);
-
-                    #pragma omp section
-                    group_handler::group_dot(this->g_r_0_F_r_1_m, arx_state_even, this->even_nu[3]);
-
-                    #pragma omp section
-                    group_handler::group_dot(this->g_beta_0_s_H_r_1_m, arx_state_even, this->even_mu[0]);
-
-                    #pragma omp section
-                    group_handler::group_dot(this->g_s_H_r_1_m, arx_state_even, this->even_mu[1]);
-                }
+                group_handler::group_dot(this->g_r_0, arx_state_odd, this->even_nu[0]);
+                group_handler::group_dot(this->g_gamma_0_r_0, arx_state_odd, this->even_nu[1]);
+                group_handler::group_dot(this->g_alpha_0_r_0_F_r_1_m, arx_state_even, this->even_nu[2]);
+                group_handler::group_dot(this->g_r_0_F_r_1_m, arx_state_even, this->even_nu[3]);
+                group_handler::group_dot(this->g_beta_0_s_H_r_1_m, arx_state_even, this->even_mu[0]);
+                group_handler::group_dot(this->g_s_H_r_1_m, arx_state_even, this->even_mu[1]);
             }
         }
 
@@ -527,19 +500,10 @@ class authentic
                 mpz_class vc1, vc2, vc3;
                 mpz_class pf1, pf2, pf3, pf4, pf5;
                 
-
-                #pragma omp parallel sections
-                {
-                    #pragma omp section
-                    group_handler::group_dot(this->g_r_1_G, Y, vc1);
-
-                    #pragma omp section
-                    group_handler::group_dot(this->g_r_1_R, U_re, vc2);
-
-                    #pragma omp section
-                    group_handler::group_dot(this->g_s, U, vc3);
-                }
-                vc3 = ((vc3) % g_mod + g_mod) % g_mod;
+                group_handler::group_dot(this->g_r_1_G, Y, vc1);
+                group_handler::group_dot(this->g_r_1_R, U_re, vc2);
+                group_handler::group_dot(this->g_s, U, vc3);
+                vc3 = ((vc3) % this->g_mod + this->g_mod) % this->g_mod;
 
                 mpz_powm(pf1.get_mpz_t(), this->odd_nu[0].get_mpz_t(), this->gamma_1->coeff[0].get_mpz_t(), this->g_mod.get_mpz_t());
                 mpz_powm(pf2.get_mpz_t(), this->odd_nu[3].get_mpz_t(), this->alpha_1->coeff[0].get_mpz_t(), this->g_mod.get_mpz_t());
@@ -577,17 +541,9 @@ class authentic
                 mpz_class vc1, vc2, vc3;
                 mpz_class pf1, pf2, pf3, pf4, pf5;
 
-                #pragma omp parallel sections
-                {
-                    #pragma omp section
-                    group_handler::group_dot(this->g_r_0_G, Y, vc1);
-
-                    #pragma omp section
-                    group_handler::group_dot(this->g_r_0_R, U_re, vc2);
-
-                    #pragma omp section
-                    group_handler::group_dot(this->g_s, U, vc3);
-                }
+                group_handler::group_dot(this->g_r_0_G, Y, vc1);
+                group_handler::group_dot(this->g_r_0_R, U_re, vc2);
+                group_handler::group_dot(this->g_s, U, vc3);
                 vc3 = ((vc3) % this->g_mod + this->g_mod) % this->g_mod;
 
                 mpz_powm(pf1.get_mpz_t(), this->even_nu[0].get_mpz_t(), this->gamma_0->coeff[0].get_mpz_t(), this->g_mod.get_mpz_t());
@@ -1101,26 +1057,12 @@ class authentic_ecc
                 poly_handler::poly_cascade_concat(this->mem_stack_new, this->arx_state_even);
                 poly_handler::poly_cascade_concat(this->mem_stack_pre, this->arx_state_odd);
 
-                #pragma omp parallel sections
-                {
-                    #pragma omp section
-                    ecc_handler::ecc_dot(this->ecc_r_1, arx_state_even, this->odd_nu[0]);
-
-                    #pragma omp section
-                    ecc_handler::ecc_dot(this->ecc_gamma_1_r_1, arx_state_even, this->odd_nu[1]);
-
-                    #pragma omp section
-                    ecc_handler::ecc_dot(this->ecc_alpha_1_r_1_F_r_0_m, arx_state_odd, this->odd_nu[2]);
-
-                    #pragma omp section
-                    ecc_handler::ecc_dot(this->ecc_r_1_F_r_0_m, arx_state_odd, this->odd_nu[3]);
-
-                    #pragma omp section
-                    ecc_handler::ecc_dot(this->ecc_beta_1_s_H_r_0_m, arx_state_odd, this->odd_mu[0]);
-
-                    #pragma omp section
-                    ecc_handler::ecc_dot(this->ecc_s_H_r_0_m, arx_state_odd, this->odd_mu[1]);
-                }   
+                ecc_handler::ecc_dot(this->ecc_r_1, arx_state_even, this->odd_nu[0]);
+                ecc_handler::ecc_dot(this->ecc_gamma_1_r_1, arx_state_even, this->odd_nu[1]);
+                ecc_handler::ecc_dot(this->ecc_alpha_1_r_1_F_r_0_m, arx_state_odd, this->odd_nu[2]);
+                ecc_handler::ecc_dot(this->ecc_r_1_F_r_0_m, arx_state_odd, this->odd_nu[3]);
+                ecc_handler::ecc_dot(this->ecc_beta_1_s_H_r_0_m, arx_state_odd, this->odd_mu[0]);
+                ecc_handler::ecc_dot(this->ecc_s_H_r_0_m, arx_state_odd, this->odd_mu[1]);
             }
             else
             {
@@ -1128,26 +1070,12 @@ class authentic_ecc
                 poly_handler::poly_cascade_concat(this->mem_stack_new, this->arx_state_odd);
                 poly_handler::poly_cascade_concat(this->mem_stack_pre, this->arx_state_even);
 
-                #pragma omp parallel sections
-                {
-                    #pragma omp section
-                    ecc_handler::ecc_dot(this->ecc_r_0, arx_state_odd, this->even_nu[0]);
-
-                    #pragma omp section
-                    ecc_handler::ecc_dot(this->ecc_gamma_0_r_0, arx_state_odd, this->even_nu[1]);
-
-                    #pragma omp section
-                    ecc_handler::ecc_dot(this->ecc_alpha_0_r_0_F_r_1_m, arx_state_even, this->even_nu[2]);
-
-                    #pragma omp section
-                    ecc_handler::ecc_dot(this->ecc_r_0_F_r_1_m, arx_state_even, this->even_nu[3]);
-
-                    #pragma omp section
-                    ecc_handler::ecc_dot(this->ecc_beta_0_s_H_r_1_m, arx_state_even, this->even_mu[0]);
-
-                    #pragma omp section
-                    ecc_handler::ecc_dot(this->ecc_s_H_r_1_m, arx_state_even, this->even_mu[1]);
-                }
+                ecc_handler::ecc_dot(this->ecc_r_0, arx_state_odd, this->even_nu[0]);
+                ecc_handler::ecc_dot(this->ecc_gamma_0_r_0, arx_state_odd, this->even_nu[1]);
+                ecc_handler::ecc_dot(this->ecc_alpha_0_r_0_F_r_1_m, arx_state_even, this->even_nu[2]);
+                ecc_handler::ecc_dot(this->ecc_r_0_F_r_1_m, arx_state_even, this->even_nu[3]);
+                ecc_handler::ecc_dot(this->ecc_beta_0_s_H_r_1_m, arx_state_even, this->even_mu[0]);
+                ecc_handler::ecc_dot(this->ecc_s_H_r_1_m, arx_state_even, this->even_mu[1]);
             }
         }
 
@@ -1165,17 +1093,9 @@ class authentic_ecc
                 point vc1, vc2, vc3;
                 point pf1, pf2, pf3, pf4, pf5;
                 
-                #pragma omp parallel sections
-                {
-                    #pragma omp section
-                    ecc_handler::ecc_dot(this->ecc_r_1_G, Y, vc1);
-
-                    #pragma omp section
-                    ecc_handler::ecc_dot(this->ecc_r_1_R, U_re, vc2);
-
-                    #pragma omp section
-                    ecc_handler::ecc_dot(this->ecc_s, U, vc3);
-                }   
+                ecc_handler::ecc_dot(this->ecc_r_1_G, Y, vc1);
+                ecc_handler::ecc_dot(this->ecc_r_1_R, U_re, vc2);
+                ecc_handler::ecc_dot(this->ecc_s, U, vc3); 
 
                 ecc_handler::point_mul(this->odd_nu[0], this->gamma_1->coeff[0], pf1, this->ecc_mod);
                 ecc_handler::point_mul(this->odd_nu[3], this->alpha_1->coeff[0], pf2, this->ecc_mod);
@@ -1213,17 +1133,9 @@ class authentic_ecc
                 point vc1, vc2, vc3;
                 point pf1, pf2, pf3, pf4, pf5;
 
-                #pragma omp parallel sections
-                {
-                    #pragma omp section
-                    ecc_handler::ecc_dot(this->ecc_r_0_G, Y, vc1);
-
-                    #pragma omp section
-                    ecc_handler::ecc_dot(this->ecc_r_0_R, U_re, vc2);
-
-                    #pragma omp section
-                    ecc_handler::ecc_dot(this->ecc_s, U, vc3);
-                }
+                ecc_handler::ecc_dot(this->ecc_r_0_G, Y, vc1);
+                ecc_handler::ecc_dot(this->ecc_r_0_R, U_re, vc2);
+                ecc_handler::ecc_dot(this->ecc_s, U, vc3);
 
                 ecc_handler::point_mul(this->even_nu[0], this->gamma_0->coeff[0], pf1, this->ecc_mod);
                 ecc_handler::point_mul(this->even_nu[3], this->alpha_0->coeff[0], pf2, this->ecc_mod);
