@@ -122,5 +122,6 @@ If you want to leakage of memory please use below cmd
 
 # Present task
 ~~End of DEV.~~
-1. Make ECC dot product.
-2. Make ECC scalar mul.
+1. Modify ECC.h page
+2. Make ECC dot product.
+3. Make ECC scalar mul.
