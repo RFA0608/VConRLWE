@@ -42,8 +42,8 @@ int main()
     prime_handler::find_ntt_root(poly_degree, plain_mod, psi_p);
 
     mpz_class cipher_mod;
-    prime_handler::find_ntt_prime(poly_degree, cipher_bits, cipher_mod);
-    // cipher_mod = "28948022309329048855892746252171976963363056481941647379679742748393362948097"; // if you want to use ECC structure.
+    // prime_handler::find_ntt_prime(poly_degree, cipher_bits, cipher_mod); // if you not use ECC
+    cipher_mod = "28948022309329048855892746252171976963363056481941647379679742748393362948097"; // if you want to use ECC structure.
     mpz_class psi_c;
     prime_handler::find_ntt_root(poly_degree, cipher_mod, psi_c);
 
@@ -169,9 +169,11 @@ int main()
 
     
     stc = chrono::high_resolution_clock::now();
-    // ==================== Authenticator test ==================== //
-    authentic* auth = new authentic(poly_degree, cipher_mod, group_mod, group_gen);
-    auth->make_ekf(arx_ctrl->P_y, arx_ctrl->Q_u);
+    // ==================== Authenticator set ===================== //
+    // authentic* auth = new authentic(poly_degree, cipher_mod, group_mod, group_gen);  //group
+    // auth->make_ekf(arx_ctrl->P_y, arx_ctrl->Q_u);    //group
+    authentic_ecc* auth_ecc = new authentic_ecc(poly_degree, cipher_mod);
+    auth_ecc->make_ekf(arx_ctrl->P_y, arx_ctrl->Q_u);
     // ============================================================ //
     edc = chrono::high_resolution_clock::now();
     duration = chrono::duration_cast<chrono::nanoseconds>(edc - stc);
@@ -200,7 +202,8 @@ int main()
     cipher* ctrl_in = new cipher(plaintext->ring_dim, plain_mod, cipher_mod, psi_p, psi_c);
 
     // ready to authentic
-    mpz_class previous_pf;
+    // mpz_class previous_pf;   //group
+    point previous_pf;
     std::vector<poly*> initial_crypto_state_stack(16);
     for(int i = 0; i < 8; i++)
     {
@@ -220,7 +223,8 @@ int main()
         }
     }
     poly* initial_crypto_state = poly_handler::poly_recur_concat(initial_crypto_state_stack);
-    group_handler::group_dot(auth->g_r_1, initial_crypto_state, previous_pf);
+    // group_handler::group_dot(auth->g_r_1, initial_crypto_state, previous_pf);    //group
+    ecc_handler::ecc_dot(auth_ecc->ecc_r_1, initial_crypto_state, previous_pf);
     for(auto& factor : initial_crypto_state_stack)
     {
         if(factor != nullptr)
@@ -295,10 +299,14 @@ int main()
             arx_ctrl->mem_y_new[3]->ciphertext[0]->coeff[1] += 1;
         }
 
-        vc_stc = std::chrono::high_resolution_clock::now();
+        
         // Authentication
-        auth->generate_proof(arx_ctrl->mem_y_new, arx_ctrl->mem_u_new, arx_ctrl->mem_y_pre, arx_ctrl->mem_u_pre);
-        pass = auth->verifying_proof(plt_out, ctrl_in, arx_ctrl->calc_res, previous_pf);
+        // auth->generate_proof(arx_ctrl->mem_y_new, arx_ctrl->mem_u_new, arx_ctrl->mem_y_pre, arx_ctrl->mem_u_pre);    //group
+        // vc_stc = std::chrono::high_resolution_clock::now();
+        // pass = auth->verifying_proof(plt_out, ctrl_in, arx_ctrl->calc_res, previous_pf); //group
+        auth_ecc->generate_proof(arx_ctrl->mem_y_new, arx_ctrl->mem_u_new, arx_ctrl->mem_y_pre, arx_ctrl->mem_u_pre);
+        vc_stc = std::chrono::high_resolution_clock::now();
+        pass = auth_ecc->verifying_proof(plt_out, ctrl_in, arx_ctrl->calc_res, previous_pf);
         vc_edc = std::chrono::high_resolution_clock::now();
         vc_duration = chrono::duration_cast<chrono::nanoseconds>(vc_edc - vc_stc);
         vc_run_time = vc_duration.count() / 1000000;
@@ -322,7 +330,8 @@ int main()
 
     delete arx_ctrl;
 
-    delete auth;
+    // delete auth;
+    delete auth_ecc;
 
     delete plt;
     delete plaintext;
