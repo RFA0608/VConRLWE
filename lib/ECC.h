@@ -107,7 +107,6 @@ class ecc_handler
 
         static int table_set(eccvec* table)
         {
-            #pragma omp parallel for
             for(int i = 0; i < 256; i++)
             {
                 if(i == 0)

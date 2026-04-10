@@ -4,7 +4,6 @@
 #include "Group.h"
 #include "ECC.h"
 #include "RLWE.h"
-#include <omp.h>
 
 class authentic
 {
