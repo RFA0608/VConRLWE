@@ -125,6 +125,8 @@ If you want to leakage of memory please use below cmd
 2. Make ECC dot product.
 3. Make ECC scalar mul.
 
+### 260415
+1. Make ECC jacobi coordinate change.
+
 # Present task
-~~End of DEV.~~
-1. Make ECC jacobi coordinate change
+End of DEV.
