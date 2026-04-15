@@ -16,10 +16,20 @@ struct point
     point() : x(0), y(0) {}
 };
 
+struct jpoint
+{
+    mpz_class x;
+    mpz_class y;
+    mpz_class z;
+
+    jpoint() : x(0), y(0), z(0) {}
+};
+
 class eccvec
 {
     public:
         std::vector<point> p;
+        std::vector<jpoint> jp;
         int size;
         mpz_class ecc_mod; 
         point G;
@@ -35,17 +45,20 @@ class eccvec
         this->G.x = "28948022309329048855892746252171976963363056481941560715954676764349967630336";
         this->G.y = "2";
         this->p.resize(size);
+        this->jp.resize(size);
     }
 
     ~eccvec()
     {
         this->p.clear();
+        this->jp.clear();
     }
 
     eccvec* clone()
     {
         eccvec* clone = new eccvec(this->size);
         clone->p = this->p;
+        clone->jp = this->jp;
         
         return clone;
     }
@@ -85,6 +98,10 @@ class ecc_handler
                     {
                         res->p[i].x = 0;
                         res->p[i].y = 0;
+
+                        res->jp[i].x = 0;
+                        res->jp[i].y = 0;
+                        res->jp[i].z = 0;
                     }
                     else
                     {
@@ -98,6 +115,10 @@ class ecc_handler
                                 point_add(res->p[i], table->p[j], res->p[i], res->ecc_mod);
                             }
                         }
+                        
+                        res->jp[i].x = res->p[i].x;
+                        res->jp[i].y = res->p[i].y;
+                        res->jp[i].z = 1;
                     }
                 } 
 
@@ -126,6 +147,110 @@ class ecc_handler
                     table->p[i].x = ((lambda * lambda - table->p[i-1].x - table->p[i-1].x) % table->ecc_mod + table->ecc_mod) % table->ecc_mod;
                     table->p[i].y = ((lambda * (table->p[i-1].x - table->p[i].x) - table->p[i-1].y) % table->ecc_mod + table->ecc_mod) % table->ecc_mod;
                 }
+            }
+            return 0;
+        }
+
+        static int j_double(jpoint& p, jpoint& r, mpz_class& ecc_mod)
+        {
+            if(p.z == 0)
+            {
+                r.z == 0;
+            }
+            else
+            {
+                mpz_class Y_sq = (p.y * p.y) % ecc_mod;
+                mpz_class S = (4 * p.x * Y_sq) % ecc_mod;
+                mpz_class M = (3 * p.x * p.x) % ecc_mod;
+                
+                mpz_class X3 = ((M * M - 2 * S) % ecc_mod + ecc_mod) % ecc_mod;
+                mpz_class Y_4 = (Y_sq * Y_sq) % ecc_mod;
+                
+                mpz_class temp = ((S - X3) % ecc_mod + ecc_mod) % ecc_mod;
+                mpz_class Y3 = ((M * temp - 8 * Y_4) % ecc_mod + ecc_mod) % ecc_mod;
+                mpz_class Z3 = (2 * p.y * p.z) % ecc_mod;
+
+                r.x = X3; 
+                r.y = Y3; 
+                r.z = Z3;
+            }
+            return 0;
+        }
+
+        static int j_add(jpoint& p1, jpoint& p2, jpoint& r, mpz_class& ecc_mod)
+        {
+            if(p1.z == 0)
+            {
+                r = p2;
+            }
+            else if(p2.z == 0)
+            {
+                r = p1;
+            }
+            else
+            {
+                mpz_class Z1_sq = (p1.z * p1.z) % ecc_mod;
+                mpz_class Z2_sq = (p2.z * p2.z) % ecc_mod;
+                mpz_class Z1_cu = (Z1_sq * p1.z) % ecc_mod;
+                mpz_class Z2_cu = (Z2_sq * p2.z) % ecc_mod;
+
+                mpz_class U1 = (p1.x * Z2_sq) % ecc_mod;
+                mpz_class U2 = (p2.x * Z1_sq) % ecc_mod;
+                mpz_class S1 = (p1.y * Z2_cu) % ecc_mod;
+                mpz_class S2 = (p2.y * Z1_cu) % ecc_mod;
+
+                if(U1 == U2)
+                {
+                    if(S1 == S2) 
+                    { 
+                        j_double(p1, r, ecc_mod); 
+                        return 0; 
+                    }
+                    else 
+                    { 
+                        r.x = 0;
+                        r.y = 0;
+                        return 0; 
+                    }
+                }
+
+                mpz_class H = ((U2 - U1) % ecc_mod + ecc_mod) % ecc_mod;
+                mpz_class R = ((S2 - S1) % ecc_mod + ecc_mod) % ecc_mod;
+                mpz_class H_sq = (H * H) % ecc_mod;
+                mpz_class H_cu = (H * H_sq) % ecc_mod;
+                mpz_class U1_H_sq = (U1 * H_sq) % ecc_mod;
+
+                mpz_class X3 = ((R * R - H_cu - 2 * U1_H_sq) % ecc_mod + ecc_mod) % ecc_mod;
+                mpz_class temp1 = ((U1_H_sq - X3) % ecc_mod + ecc_mod) % ecc_mod;
+                mpz_class temp2 = (S1 * H_cu) % ecc_mod;
+                mpz_class Y3 = ((R * temp1 - temp2) % ecc_mod + ecc_mod) % ecc_mod;
+                mpz_class Z3 = (((H * p1.z) % ecc_mod) * p2.z) % ecc_mod;
+
+                r.x = X3; 
+                r.y = Y3; 
+                r.z = Z3;
+            }
+            return 0;
+        }
+
+        static int to_affine(jpoint& p, point& r, mpz_class& ecc_mod)
+        {
+            if(p.z == 0)
+            {
+                r.x = 0; 
+                r.y = 0;
+                
+            }
+            else
+            {
+                 mpz_class Z_inv, Z_inv_sq, Z_inv_cu;
+                mpz_invert(Z_inv.get_mpz_t(), p.z.get_mpz_t(), ecc_mod.get_mpz_t());
+                
+                Z_inv_sq = (Z_inv * Z_inv) % ecc_mod;
+                Z_inv_cu = (Z_inv_sq * Z_inv) % ecc_mod;
+
+                r.x = ((p.x * Z_inv_sq) % ecc_mod + ecc_mod) % ecc_mod;
+                r.y = ((p.y * Z_inv_cu) % ecc_mod + ecc_mod) % ecc_mod;
             }
             return 0;
         }
@@ -221,6 +346,25 @@ class ecc_handler
             return 0;
         }
 
+        static int jpoint_mul(jpoint& p, mpz_class& n, jpoint& r, mpz_class& ecc_mod)
+        {
+            r.x = p.x;
+            r.y = p.y;
+            r.z = 1;
+
+            jpoint D;
+
+            for(int j = 0; j < 256; j++)
+            {
+                if(mpz_tstbit(n.get_mpz_t(), j))
+                {
+                    j_add(r, D, r, ecc_mod);
+                }
+                j_double(D, D, ecc_mod);
+            }    
+            return 0;
+        }
+
         static int ecc_mul(eccvec* P, poly* op, eccvec* R)
         {
             if((P->size != R->size) || (op->ring_dim != R->size))
@@ -302,6 +446,69 @@ class ecc_handler
                             }
                             point_add(D, D, D, R->ecc_mod);
                         }
+                    }
+                } 
+                
+                res.x = 0;
+                res.y = 0;
+                for(int i = 0; i < R->size; i++)
+                {
+                    point_add(res, R->p[i], res, R->ecc_mod);
+                }
+                
+                delete R;
+                return 0;
+            }
+        }
+
+        static int ecc_dot_j(eccvec* P, poly* op, point& res)
+        {
+            if(P->size != op->ring_dim)
+            {
+                return -1;
+            }
+            else
+            {
+                eccvec* R = new eccvec(P->size);
+
+                #pragma omp parallel for
+                for(int i = 0; i < R->size; i++)
+                {
+                    if(op->coeff[i] == 0)
+                    {
+                        R->p[i].x = 0;
+                        R->p[i].y = 0;
+
+                        R->jp[i].x = 0;
+                        R->jp[i].y = 0;
+                        R->jp[i].z = 0;
+                    }
+                    else if(P->p[i].x == 0 && P->p[i].y == 0)
+                    {
+                        R->p[i].x = 0;
+                        R->p[i].y = 0;
+
+                        R->jp[i].x = 0;
+                        R->jp[i].y = 0;
+                        R->jp[i].z = 0;
+                    }
+                    else
+                    {
+                        jpoint D;
+                        D.x = P->jp[i].x;
+                        D.y = P->jp[i].y;
+                        D.z = P->jp[i].z;
+                        for(int j = 0; j < 256; j++)
+                        {
+                            if(mpz_tstbit(op->coeff[i].get_mpz_t(), j))
+                            {
+                                j_add(R->jp[i], D, R->jp[i], R->ecc_mod);
+
+                            }
+                            j_double(D, D, R->ecc_mod);
+                        }
+
+                        to_affine(R->jp[i], R->p[i], R->ecc_mod);
                     }
                 } 
                 
