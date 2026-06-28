@@ -14,9 +14,9 @@
 using namespace std;
 
 // ==================== Hyper Parameter ==================== //
-const int poly_degree = (int)powl(2, 14);
+const int poly_degree = (int)powl(2, 13);
 const int plain_bits = 42;
-const int cipher_bits = 256;
+const int cipher_bits = 143; //256
 const int group_bits = 3072;
 
 const double r_scale = 0.0001;
@@ -42,8 +42,8 @@ int main()
     prime_handler::find_ntt_root(poly_degree, plain_mod, psi_p);
 
     mpz_class cipher_mod;
-    // prime_handler::find_ntt_prime(poly_degree, cipher_bits, cipher_mod); // if you not use ECC
-    cipher_mod = "28948022309329048855892746252171976963363056481941647379679742748393362948097"; // if you want to use ECC structure.
+    prime_handler::find_ntt_prime(poly_degree, cipher_bits, cipher_mod); // if you not use ECC
+    // cipher_mod = "28948022309329048855892746252171976963363056481941647379679742748393362948097"; // if you want to use ECC structure.
     mpz_class psi_c;
     prime_handler::find_ntt_root(poly_degree, cipher_mod, psi_c);
 
@@ -172,8 +172,13 @@ int main()
     // ==================== Authenticator set ===================== //
     // authentic* auth = new authentic(poly_degree, cipher_mod, group_mod, group_gen);  //group
     // auth->make_ekf(arx_ctrl->P_y, arx_ctrl->Q_u);    //group
-    authentic_ecc* auth_ecc = new authentic_ecc(poly_degree, cipher_mod);
-    auth_ecc->make_ekf(arx_ctrl->P_y, arx_ctrl->Q_u);
+
+    // authentic_ecc* auth_ecc = new authentic_ecc(poly_degree, cipher_mod);
+    // auth_ecc->make_ekf(arx_ctrl->P_y, arx_ctrl->Q_u);
+
+    authentic_originf* auth_orf = new authentic_originf(poly_degree, cipher_mod);  //originf
+    auth_orf->make_ekf(arx_ctrl->P_y, arx_ctrl->Q_u);  //originf
+    auth_orf->set_mem(arx_ctrl->mem_y_new, arx_ctrl->mem_u_new);  //originf
     // ============================================================ //
     edc = chrono::high_resolution_clock::now();
     duration = chrono::duration_cast<chrono::nanoseconds>(edc - stc);
@@ -224,7 +229,7 @@ int main()
     }
     poly* initial_crypto_state = poly_handler::poly_recur_concat(initial_crypto_state_stack);
     // group_handler::group_dot(auth->g_r_1, initial_crypto_state, previous_pf);    //group
-    ecc_handler::ecc_dot(auth_ecc->ecc_r_1, initial_crypto_state, previous_pf);
+    // ecc_handler::ecc_dot(auth_ecc->ecc_r_1, initial_crypto_state, previous_pf);
     for(auto& factor : initial_crypto_state_stack)
     {
         if(factor != nullptr)
@@ -267,7 +272,9 @@ int main()
 
         // get plant output and calculation control input
         plt->output();
+        enc_stc = std::chrono::high_resolution_clock::now();
         arx_ctrl->calc();
+        enc_edc = std::chrono::high_resolution_clock::now();
 
         // get control input
         crypto_handler::decrypt(arx_ctrl->calc_res, sk, plaintext);
@@ -276,7 +283,7 @@ int main()
 
         real_u[0] = (double)temp_u * r_scale * s_scale;
 
-        enc_stc = std::chrono::high_resolution_clock::now();
+        
         // plant output encryption
         plant_output[0] = (int64_t)(plt->y[0] / r_scale);
         plant_output[1] = (int64_t)(plt->y[1] / r_scale);
@@ -287,7 +294,6 @@ int main()
         control_input[0] = (int64_t)(real_u[0] / r_scale);   
         batch_encoder::encode(control_input, plain_mod, psi_p, plaintext);
         crypto_handler::encrypt(plaintext, sk, ctrl_in);
-        enc_edc = std::chrono::high_resolution_clock::now();
         enc_duration = chrono::duration_cast<chrono::nanoseconds>(enc_edc - enc_stc);
         enc_run_time = enc_duration.count() / 1000000;
 
@@ -302,14 +308,19 @@ int main()
         
         // Authentication
         // auth->generate_proof(arx_ctrl->mem_y_new, arx_ctrl->mem_u_new, arx_ctrl->mem_y_pre, arx_ctrl->mem_u_pre);    //group
+        
         // vc_stc = std::chrono::high_resolution_clock::now();
         // pass = auth->verifying_proof(plt_out, ctrl_in, arx_ctrl->calc_res, previous_pf); //group
-        auth_ecc->generate_proof(arx_ctrl->mem_y_new, arx_ctrl->mem_u_new, arx_ctrl->mem_y_pre, arx_ctrl->mem_u_pre);
+        // auth_ecc->generate_proof(arx_ctrl->mem_y_new, arx_ctrl->mem_u_new, arx_ctrl->mem_y_pre, arx_ctrl->mem_u_pre);
         vc_stc = std::chrono::high_resolution_clock::now();
-        pass = auth_ecc->verifying_proof(plt_out, ctrl_in, arx_ctrl->calc_res, previous_pf);
+        // pass = auth_ecc->verifying_proof(plt_out, ctrl_in, arx_ctrl->calc_res, previous_pf);
+        pass = auth_orf->verifying_proof(arx_ctrl->calc_res);
         vc_edc = std::chrono::high_resolution_clock::now();
         vc_duration = chrono::duration_cast<chrono::nanoseconds>(vc_edc - vc_stc);
         vc_run_time = vc_duration.count() / 1000000;
+
+        // update vc state
+        auth_orf->state_update(plt_out,ctrl_in);
 
         // save data
         fprintf(ps, "%lf,%lf,%lf,%d,%lf,%lf\n",plt->y[0], plt->y[1], real_u[0], (int)pass, enc_run_time, vc_run_time);
@@ -331,7 +342,7 @@ int main()
     delete arx_ctrl;
 
     // delete auth;
-    delete auth_ecc;
+    // delete auth_ecc;
 
     delete plt;
     delete plaintext;
