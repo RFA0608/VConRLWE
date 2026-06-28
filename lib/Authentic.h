@@ -1195,4 +1195,158 @@ class authentic_ecc
         }
 };
 
+class authentic_originf
+{
+    public:
+        int poly_degree;
+        mpz_class cipher_mod;
+
+        poly* s;
+        std::vector<poly*> sH;
+
+        std::vector<poly*> y_mem;
+        std::vector<poly*> u_mem;
+        poly* u_stack;
+
+        std::vector<mpz_class> pf;
+
+        authentic_originf(int poly_degree, mpz_class cipher_mod)
+        {
+            this->poly_degree = poly_degree;
+            this->cipher_mod = cipher_mod;
+
+            this->s = new poly(3 * poly_degree);
+            this->sH.resize(8);
+
+            this->y_mem.resize(4);
+            this->u_mem.resize(4);
+
+            for(int i = 0; i < 4; i++)
+            {
+                this->y_mem[i] = new poly(2 * poly_degree);
+                this->u_mem[i] = new poly(2 * poly_degree);
+            }
+
+            this->u_stack = new poly(3 * poly_degree);
+
+            this->pf.resize(8);
+        }
+
+        ~authentic_originf()
+        {
+            delete this->s;
+
+            for(auto& factor : this->sH)
+            {
+                if(factor != nullptr)
+                {
+                    delete factor;
+                    factor = nullptr;
+                }
+            }
+            this->sH.clear();
+
+            for(auto& factor : this->y_mem)
+            {
+                if(factor != nullptr)
+                {
+                    delete factor;
+                    factor = nullptr;
+                }
+            }
+            this->y_mem.clear();
+
+            for(auto& factor : this->u_mem)
+            {
+                if(factor != nullptr)
+                {
+                    delete factor;
+                    factor = nullptr;
+                }
+            }
+            this->u_mem.clear();
+
+            delete this->u_stack;
+
+            this->pf.clear();
+        }
+
+        void make_ekf(std::vector<cipher*>& P_enc, std::vector<cipher*>& Q_enc)
+        {
+            random_handler::not_zero_public_key(this->cipher_mod, this->s);
+
+            for(int i = 0; i < 8; i++)
+            {
+                this->sH[i] = new poly(2 * this->poly_degree);
+                if(i < 4)
+                {
+                    crypto_handler::pval_mrlike_mul(this->s, P_enc[i], this->sH[i]);
+                }
+                else
+                {
+                    crypto_handler::pval_mrlike_mul(this->s, Q_enc[i - 4], this->sH[i]);
+                }
+            }
+        }
+
+        void set_mem(std::vector<cipher*>& y_mem_int, std::vector<cipher*>& u_mem_int)
+        {
+            for(int i = 0; i < 4; i++)
+            {
+                poly_handler::poly_concat(y_mem_int[i]->ciphertext[0], y_mem_int[i]->ciphertext[1], this->y_mem[i]);
+                poly_handler::poly_concat(u_mem_int[i]->ciphertext[0], u_mem_int[i]->ciphertext[1], this->u_mem[i]);
+            }
+        }
+
+        bool verifying_proof(cipher* u)
+        {
+            for(int i = 0; i < 8; i++)
+            {
+                if(i < 4)
+                {
+                    poly_handler::poly_dot(this->sH[i], this->y_mem[i], this->pf[i]);
+                }
+                else
+                {
+                    poly_handler::poly_dot(this->sH[i], this->u_mem[i-4], this->pf[i]);
+                }
+            }
+
+            mpz_class pf_sum = 0;
+            for(int i = 0; i < 8; i++)
+            {
+                pf_sum += this->pf[i];
+            }
+            pf_sum = (pf_sum % this->cipher_mod + this->cipher_mod) % this->cipher_mod;
+
+            poly_handler::poly_cascade_concat(u->ciphertext, this->u_stack);
+            mpz_class pf_u = 0;
+            
+            poly_handler::poly_dot(this->s, this->u_stack, pf_u);
+            pf_u = (pf_u % this->cipher_mod + this->cipher_mod) % this->cipher_mod;
+            
+            if(pf_sum != pf_u)
+            {
+                return 0;
+            }
+            else
+            {
+                return 1;
+            }
+        }
+
+        void state_update(cipher* y, cipher* u_re_enc)
+        {
+            for(int i = 0; i < 3; i++)
+            {
+                std::swap(this->y_mem[i], this->y_mem[i+1]);
+                std::swap(this->u_mem[i], this->u_mem[i+1]);
+            }
+            
+            poly_handler::poly_concat(y->ciphertext[0], y->ciphertext[1], this->y_mem[3]);
+            poly_handler::poly_concat(u_re_enc->ciphertext[0], u_re_enc->ciphertext[1], this->u_mem[3]);
+        }
+
+};
+
 #endif
