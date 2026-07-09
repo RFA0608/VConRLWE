@@ -176,9 +176,13 @@ int main()
     // authentic_ecc* auth_ecc = new authentic_ecc(poly_degree, cipher_mod);
     // auth_ecc->make_ekf(arx_ctrl->P_y, arx_ctrl->Q_u);
 
-    authentic_originf* auth_orf = new authentic_originf(poly_degree, cipher_mod);  //originf
-    auth_orf->make_ekf(arx_ctrl->P_y, arx_ctrl->Q_u);  //originf
-    auth_orf->set_mem(arx_ctrl->mem_y_new, arx_ctrl->mem_u_new);  //originf
+    // authentic_originf* auth_orf = new authentic_originf(poly_degree, cipher_mod);  //originf
+    // auth_orf->make_ekf(arx_ctrl->P_y, arx_ctrl->Q_u);  //originf
+    // auth_orf->set_mem(arx_ctrl->mem_y_new, arx_ctrl->mem_u_new);  //originf
+
+    authentic_dynamicf* auth_dnf = new authentic_dynamicf(poly_degree, cipher_mod); //dynamicf
+    auth_dnf->make_ekf(arx_ctrl->P_y, arx_ctrl->Q_u); //dynamicf
+    auth_dnf->set_mem(arx_ctrl->mem_y_new, arx_ctrl->mem_u_new); //dynamicf
     // ============================================================ //
     edc = chrono::high_resolution_clock::now();
     duration = chrono::duration_cast<chrono::nanoseconds>(edc - stc);
@@ -314,13 +318,15 @@ int main()
         // auth_ecc->generate_proof(arx_ctrl->mem_y_new, arx_ctrl->mem_u_new, arx_ctrl->mem_y_pre, arx_ctrl->mem_u_pre);
         vc_stc = std::chrono::high_resolution_clock::now();
         // pass = auth_ecc->verifying_proof(plt_out, ctrl_in, arx_ctrl->calc_res, previous_pf);
-        pass = auth_orf->verifying_proof(arx_ctrl->calc_res);
+        // pass = auth_orf->verifying_proof(arx_ctrl->calc_res);
+        pass = auth_dnf->verifying_proof(arx_ctrl->calc_res);
         vc_edc = std::chrono::high_resolution_clock::now();
         vc_duration = chrono::duration_cast<chrono::nanoseconds>(vc_edc - vc_stc);
         vc_run_time = vc_duration.count() / 1000000;
 
         // update vc state
-        auth_orf->state_update(plt_out,ctrl_in);
+        // auth_orf->state_update(plt_out,ctrl_in);
+        auth_dnf->state_update(plt_out, ctrl_in);
 
         // save data
         fprintf(ps, "%lf,%lf,%lf,%d,%lf,%lf\n",plt->y[0], plt->y[1], real_u[0], (int)pass, enc_run_time, vc_run_time);

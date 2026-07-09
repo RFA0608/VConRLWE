@@ -1349,4 +1349,254 @@ class authentic_originf
 
 };
 
+class authentic_dynamicf
+{
+    public:
+        int poly_degree;
+        mpz_class cipher_mod;
+
+        std::vector<poly*> r;
+        std::vector<poly*> s;
+        
+        std::vector<std::vector<poly*>> Pu;
+        std::vector<std::vector<poly*>> Py;
+
+        std::vector<poly*> y_mem;
+        std::vector<poly*> u_mem;
+        poly* u_stack;
+
+        std::vector<mpz_class> Gamma_u;
+        std::vector<mpz_class> Gamma_y;
+        std::vector<mpz_class> Q_u;
+        std::vector<mpz_class> Q_y;
+
+        mpz_class rhs_pf;
+        mpz_class lhs_pf;
+
+        int index_j = 0;
+
+        authentic_dynamicf(int poly_degree, mpz_class cipher_mod)
+        {
+            this->poly_degree = poly_degree;
+            this->cipher_mod = cipher_mod;
+
+            this->s.resize(4);
+            for(int i = 0; i < 4; i++)
+            {
+                this->s[i] = new poly(3 * poly_degree);
+            }
+
+            this->r.resize(4);
+            for(int i = 0; i < 4; i++)
+            {
+                this->r[i] = new poly(3 * poly_degree);
+            }
+            
+            this->Pu.resize(4);
+            for(int i = 0; i < 4; i++)
+            {
+                this->Pu[i].resize(4);
+            }
+            for(int i = 0; i < 4; i++)
+            {
+                for(int j = 0; j < 4; j++)
+                {
+                    this->Pu[i][j] = new poly(3 * poly_degree);
+                }
+            }
+
+
+            this->Py.resize(4);
+            for(int i = 0; i < 4; i++)
+            {
+                this->Py[i].resize(4);
+            }
+            for(int i = 0; i < 4; i++)
+            {
+                for(int j = 0; j < 4; j++)
+                {
+                    this->Py[i][j] = new poly(3 * poly_degree);
+                }
+            }
+
+            this->y_mem.resize(4);
+            this->u_mem.resize(4);
+
+            for(int i = 0; i < 4; i++)
+            {
+                this->y_mem[i] = new poly(3 * poly_degree);
+                this->u_mem[i] = new poly(3 * poly_degree);
+            }
+
+            this->u_stack = new poly(3 * poly_degree);
+
+            this->Gamma_u.resize(4);
+            this->Gamma_y.resize(4);
+            this->Q_u.resize(4);
+            this->Q_y.resize(4);
+        }
+
+        ~authentic_dynamicf()
+        {
+            for(auto& factor : this->r)
+            {
+                if(factor != nullptr)
+                {
+                    delete factor;
+                    factor = nullptr;
+                }
+            }
+            this->r.clear();
+
+            for(auto& factor : this->s)
+            {
+                if(factor != nullptr)
+                {
+                    delete factor;
+                    factor = nullptr;
+                }
+            }
+            this->s.clear();
+
+            for(auto& factor : this->Pu)
+            {
+                for(auto& entry : factor)
+                {
+                    if(entry != nullptr)
+                    {
+                        delete entry;
+                        entry = nullptr;
+                    }
+                }
+            }
+            this->Pu.clear();
+
+            for(auto& factor : this->Py)
+            {
+                for(auto& entry : factor)
+                {
+                    if(entry != nullptr)
+                    {
+                        delete entry;
+                        entry = nullptr;
+                    }
+                }
+            }
+            this->Py.clear();
+
+            for(auto& factor : this->y_mem)
+            {
+                if(factor != nullptr)
+                {
+                    delete factor;
+                    factor = nullptr;
+                }
+            }
+            this->y_mem.clear();
+
+            for(auto& factor : this->u_mem)
+            {
+                if(factor != nullptr)
+                {
+                    delete factor;
+                    factor = nullptr;
+                }
+            }
+            this->u_mem.clear();
+
+            delete this->u_stack;
+
+            this->Gamma_u.clear();
+            this->Gamma_y.clear();
+            this->Q_u.clear();
+            this->Q_y.clear();
+        }
+
+        void make_ekf(std::vector<cipher*>& P_enc, std::vector<cipher*>& Q_enc)
+        {
+            for(int i = 0; i < 4; i++)
+            {
+                random_handler::not_zero_public_key(this->cipher_mod, this->r[i]);
+                random_handler::not_zero_public_key(this->cipher_mod, this->s[i]);
+            }
+
+            poly* temp = new poly(3 * this->poly_degree);
+
+            for(int i = 0; i < 4; i++)
+            {
+                for(int j = 0; j < 4; j++)
+                {
+                    this->Pu[i][j]->fill_zero();
+                    crypto_handler::pval_mrlike_mul(this->r[j], Q_enc[i], this->Pu[i][j]);
+                    poly_handler::poly_neg(this->r[(j+1) % 4], temp);
+                    poly_handler::poly_add(this->Pu[i][j], temp, this->Pu[i][j]);
+
+                    this->Py[i][j]->fill_zero();
+                    crypto_handler::pval_mrlike_mul(this->r[j], P_enc[i], this->Py[i][j]);
+                    poly_handler::poly_neg(this->s[(j+1) % 4], temp);
+                    poly_handler::poly_add(this->Py[i][j], temp, this->Py[i][j]);
+                }
+            }
+
+            delete temp;
+        }
+
+        void set_mem(std::vector<cipher*>& y_mem_int, std::vector<cipher*>& u_mem_int)
+        {
+            for(int i = 0; i < 4; i++)
+            {
+                this->y_mem[i]->fill_zero();
+                poly_handler::poly_concat_suf(y_mem_int[i]->ciphertext[0], y_mem_int[i]->ciphertext[1], this->y_mem[i]);
+
+                this->u_mem[i]->fill_zero();
+                poly_handler::poly_concat_suf(u_mem_int[i]->ciphertext[0], u_mem_int[i]->ciphertext[1], this->u_mem[i]);
+            }
+        }
+
+        bool verifying_proof(cipher* u)
+        {
+            for(int i = 0; i < 4; i++)
+            {
+                poly_handler::poly_dot(this->Pu[i][this->index_j], this->u_mem[i], this->Gamma_u[i]);
+                poly_handler::poly_dot(this->Py[i][this->index_j], this->y_mem[i], this->Gamma_y[i]);
+
+                poly_handler::poly_dot(this->r[(this->index_j + 1) % 4], this->u_mem[i], this->Q_u[i]);
+                poly_handler::poly_dot(this->s[(this->index_j + 1) % 4], this->y_mem[i], this->Q_y[i]);
+            }
+
+            poly* temp = poly_handler::poly_recur_concat(u->ciphertext);
+            poly_handler::poly_dot(this->r[this->index_j], temp, this->lhs_pf);
+            delete temp;
+
+            this->rhs_pf = 0;
+            for(int i = 0; i < 4; i++)
+            {
+                this->rhs_pf = this->rhs_pf + this->Gamma_u[i] + this->Gamma_y[i] + this->Q_u[i] + this->Q_y[i];
+            }
+            this->index_j = (this->index_j + 1) % 4;
+
+            if(this->lhs_pf != this->rhs_pf)
+            {
+                return 0;
+            }
+            else
+            {
+                return 1;
+            }
+        }
+
+        void state_update(cipher* y, cipher* u_re_enc)
+        {
+            for(int i = 0; i < 3; i++)
+            {
+                std::swap(this->y_mem[i], this->y_mem[i+1]);
+                std::swap(this->u_mem[i], this->u_mem[i+1]);
+            }
+            
+            poly_handler::poly_concat_suf(y->ciphertext[0], y->ciphertext[1], this->y_mem[3]);
+            poly_handler::poly_concat_suf(u_re_enc->ciphertext[0], u_re_enc->ciphertext[1], this->u_mem[3]);
+        }
+
+};
+
 #endif
