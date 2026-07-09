@@ -1,6 +1,7 @@
 # VConRLWE
 This code is a test code for cryptographic operations and verification processes in large integer environments using gmp. 
 Verification of attacks is the primary purpose, and verification in encrypted state is implemented.
+**This version not available(before construction of dynamicf)**
 
 ## Description
 For the linear control system, the BGV type RLWE ciphertext is calculated and verified, time comparison, and efficiency are simulated. 
