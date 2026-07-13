@@ -84,6 +84,33 @@ class poly_handler
                 return 0;
             }
         }
+
+        static int poly_concat_suf(poly* op1, poly* op2, poly* res)
+        {
+            if(res->ring_dim < (op1->ring_dim + op2->ring_dim))
+            {
+                return -1;
+            }
+            else
+            {
+                for(int i = 0; i < op1->ring_dim; i++)
+                {
+                    res->coeff[i] = op1->coeff[i];
+                }  
+
+                for(int i = op1->ring_dim; i < op1->ring_dim + op2->ring_dim; i++)
+                {
+                    res->coeff[i] = op2->coeff[i - op1->ring_dim];
+                }
+
+                for(int i = op1->ring_dim + op2->ring_dim; i < res->ring_dim; i++)
+                {
+                    res->coeff[i] = 0;
+                }
+
+                return 0;
+            }
+        }
         
         static poly* poly_recur_concat(std::vector<poly*> op)
         {

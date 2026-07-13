@@ -890,7 +890,7 @@ class crypto_handler
 
         static int pval_mrlike_mul(poly* op1, cipher* op2, poly* res)
         {
-            if(op1->ring_dim != 3 * op2->ring_dim || res->ring_dim != 2 * op2->ring_dim)
+            if(op1->ring_dim != 3 * op2->ring_dim || ((res->ring_dim != 2 * op2->ring_dim) && (res->ring_dim != 3 * op2->ring_dim)))
             {
                 return -1;
             }
@@ -946,7 +946,7 @@ class crypto_handler
                 poly_handler::poly_add(temp_res1, temp_res2, res2);
                 poly_handler::poly_mod(res2, op2->cipher_mod, res2);
 
-                poly_handler::poly_concat(res1, res2, res);
+                poly_handler::poly_concat_suf(res1, res2, res);
                 
                 delete s1;
                 delete s2;
