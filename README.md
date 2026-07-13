@@ -130,7 +130,7 @@ If you want to leakage of memory please use below cmd
 
 ### 260713
 1. Add original Freivalds' algorithm.
-2. Add dynamic version Freivalds' algorithm. （not complete)
+2. Add dynamic version Freivalds' algorithm.
 3. Some errors corrected.
 4. Attack scenario modified.
 
