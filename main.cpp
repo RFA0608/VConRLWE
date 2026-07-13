@@ -14,9 +14,9 @@
 using namespace std;
 
 // ==================== Hyper Parameter ==================== //
-const int poly_degree = (int)powl(2, 10);
+const int poly_degree = (int)powl(2, 13);
 const int plain_bits = 42;
-const int cipher_bits = 143; //256
+const int cipher_bits = 143; //143(not dlp), 256(with dlp)
 const int group_bits = 3072;
 
 const double r_scale = 0.0001;
@@ -42,8 +42,8 @@ int main()
     prime_handler::find_ntt_root(poly_degree, plain_mod, psi_p);
 
     mpz_class cipher_mod;
-    prime_handler::find_ntt_prime(poly_degree, cipher_bits, cipher_mod); // if you not use ECC
-    // cipher_mod = "28948022309329048855892746252171976963363056481941647379679742748393362948097"; // if you want to use ECC structure.
+    // prime_handler::find_ntt_prime(poly_degree, cipher_bits, cipher_mod); // if you not use ECC
+    cipher_mod = "28948022309329048855892746252171976963363056481941647379679742748393362948097"; // if you want to use ECC structure.
     mpz_class psi_c;
     prime_handler::find_ntt_root(poly_degree, cipher_mod, psi_c);
 
@@ -113,7 +113,7 @@ int main()
         batch_encoder::encode(pod_matrix, plain_mod, psi_p, pre_packed_data);
 
         poly* pre_plaintext = new poly(poly_degree);
-        poly_handler::pack_2_plain(pre_packed_data, pre_plaintext);
+        poly_handler::clone_other(pre_packed_data, pre_plaintext);
 
         cipher* ciphertext = new cipher(pre_plaintext->ring_dim, plain_mod, cipher_mod, psi_p, psi_c);
         crypto_handler::encrypt(pre_plaintext, sk, ciphertext);
@@ -133,7 +133,7 @@ int main()
         batch_encoder::encode(pod_matrix, plain_mod, psi_p, pre_packed_data);
 
         poly* pre_plaintext = new poly(poly_degree);
-        poly_handler::pack_2_plain(pre_packed_data, pre_plaintext);
+        poly_handler::clone_other(pre_packed_data, pre_plaintext);
 
         cipher* ciphertext = new cipher(pre_plaintext->ring_dim, plain_mod, cipher_mod, psi_p, psi_c);
         crypto_handler::encrypt(pre_plaintext, sk, ciphertext);
@@ -150,7 +150,7 @@ int main()
     batch_encoder::encode(pod_matrix, plain_mod, psi_p, pre_packed_data);
 
     poly* pre_plaintext = new poly(poly_degree);
-    poly_handler::pack_2_plain(pre_packed_data, pre_plaintext);
+    poly_handler::clone_other(pre_packed_data, pre_plaintext);
 
     cipher* ciphertext = new cipher(pre_plaintext->ring_dim, plain_mod, cipher_mod, psi_p, psi_c);
     crypto_handler::encrypt(pre_plaintext, sk, ciphertext);
@@ -212,7 +212,7 @@ int main()
 
     // ready to authentic
     // mpz_class previous_pf;   //group
-    point previous_pf;
+    // point previous_pf; // ecc
     std::vector<poly*> initial_crypto_state_stack(16);
     for(int i = 0; i < 8; i++)
     {
@@ -233,7 +233,7 @@ int main()
     }
     poly* initial_crypto_state = poly_handler::poly_recur_concat(initial_crypto_state_stack);
     // group_handler::group_dot(auth->g_r_1, initial_crypto_state, previous_pf);    //group
-    // ecc_handler::ecc_dot(auth_ecc->ecc_r_1, initial_crypto_state, previous_pf);
+    // ecc_handler::ecc_dot(auth_ecc->ecc_r_1, initial_crypto_state, previous_pf); //ecc
     for(auto& factor : initial_crypto_state_stack)
     {
         if(factor != nullptr)
@@ -320,13 +320,12 @@ int main()
         
         // Authentication
         // auth->generate_proof(arx_ctrl->mem_y_new, arx_ctrl->mem_u_new, arx_ctrl->mem_y_pre, arx_ctrl->mem_u_pre);    //group
-        
-        // vc_stc = std::chrono::high_resolution_clock::now();
-        // pass = auth->verifying_proof(plt_out, ctrl_in, arx_ctrl->calc_res, previous_pf); //group
-        // auth_ecc->generate_proof(arx_ctrl->mem_y_new, arx_ctrl->mem_u_new, arx_ctrl->mem_y_pre, arx_ctrl->mem_u_pre);
+        // auth_ecc->generate_proof(arx_ctrl->mem_y_new, arx_ctrl->mem_u_new, arx_ctrl->mem_y_pre, arx_ctrl->mem_u_pre); //ecc
+
         vc_stc = std::chrono::high_resolution_clock::now();
-        // pass = auth_ecc->verifying_proof(plt_out, ctrl_in, arx_ctrl->calc_res, previous_pf);
-        // pass = auth_orf->verifying_proof(arx_ctrl->calc_res);
+        // pass = auth->verifying_proof(plt_out, ctrl_in, arx_ctrl->calc_res, previous_pf); //group
+        // pass = auth_ecc->verifying_proof(plt_out, ctrl_in, arx_ctrl->calc_res, previous_pf); // ecc
+        // pass = auth_orf->verifying_proof(arx_ctrl->calc_res); 
         pass = auth_dnf->verifying_proof(arx_ctrl->calc_res);
         vc_edc = std::chrono::high_resolution_clock::now();
         vc_duration = chrono::duration_cast<chrono::nanoseconds>(vc_edc - vc_stc);
@@ -357,6 +356,8 @@ int main()
 
     // delete auth;
     // delete auth_ecc;
+    // delete auth_orf;
+    delete auth_dnf;
 
     delete plt;
     delete plaintext;

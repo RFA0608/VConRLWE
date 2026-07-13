@@ -1363,7 +1363,9 @@ class authentic_dynamicf
 
         std::vector<poly*> y_mem;
         std::vector<poly*> u_mem;
+        std::vector<poly*> delta;
         poly* u_stack;
+        poly* reconst_u;
 
         std::vector<mpz_class> Gamma_u;
         std::vector<mpz_class> Gamma_y;
@@ -1428,7 +1430,15 @@ class authentic_dynamicf
                 this->u_mem[i] = new poly(3 * poly_degree);
             }
 
+            this->delta.resize(4);
+            for(int i = 0; i < 4; i++)
+            {
+                this->delta[i] = new poly(3 * poly_degree);
+                this->delta[i]->fill_zero();
+            }
+            
             this->u_stack = new poly(3 * poly_degree);
+            this->reconst_u = new poly(3 * poly_degree);
 
             this->Gamma_u.resize(4);
             this->Gamma_y.resize(4);
@@ -1504,7 +1514,18 @@ class authentic_dynamicf
             }
             this->u_mem.clear();
 
+            for(auto& factor : this->delta)
+            {
+                if(factor != nullptr)
+                {
+                    delete factor;
+                    factor = nullptr;
+                }
+            }
+            this->delta.clear();
+
             delete this->u_stack;
+            delete this->reconst_u;
 
             this->Gamma_u.clear();
             this->Gamma_y.clear();
@@ -1557,16 +1578,20 @@ class authentic_dynamicf
         {
             for(int i = 0; i < 4; i++)
             {
-                poly_handler::poly_dot(this->Pu[i][this->index_j], this->u_mem[i], this->Gamma_u[i]);
+                poly_handler::poly_add(this->u_mem[i], this->delta[i], this->reconst_u);
+                poly_handler::poly_dot(this->Pu[i][this->index_j], this->reconst_u, this->Gamma_u[i]);
                 poly_handler::poly_dot(this->Py[i][this->index_j], this->y_mem[i], this->Gamma_y[i]);
 
-                poly_handler::poly_dot(this->r[(this->index_j + 1) % 4], this->u_mem[i], this->Q_u[i]);
+                poly_handler::poly_dot(this->r[(this->index_j + 1) % 4], this->reconst_u, this->Q_u[i]);
                 poly_handler::poly_dot(this->s[(this->index_j + 1) % 4], this->y_mem[i], this->Q_y[i]);
             }
 
-            poly* temp = poly_handler::poly_recur_concat(u->ciphertext);
-            poly_handler::poly_dot(this->r[this->index_j], temp, this->lhs_pf);
-            delete temp;
+            for(int i = 0; i < 3; i++)
+            {
+                std::swap(this->delta[i], this->delta[i+1]);
+            }
+            poly_handler::poly_cascade_concat(u->ciphertext, this->delta[3]);
+            poly_handler::poly_dot(this->r[this->index_j], this->delta[3], this->lhs_pf);
 
             this->rhs_pf = 0;
             for(int i = 0; i < 4; i++)
@@ -1596,7 +1621,10 @@ class authentic_dynamicf
             }
             
             poly_handler::poly_concat_suf(y->ciphertext[0], y->ciphertext[1], this->y_mem[3]);
-            poly_handler::poly_concat_suf(u_re_enc->ciphertext[0], u_re_enc->ciphertext[1], this->u_mem[3]);
+            poly_handler::clone_other(this->delta[3], this->u_mem[3]);
+            poly_handler::poly_concat_suf(u_re_enc->ciphertext[0], u_re_enc->ciphertext[1], this->u_stack);
+            poly_handler::poly_neg(this->delta[3], this->delta[3]);
+            poly_handler::poly_add(this->u_stack, this->delta[3], this->delta[3]);
         }
 
 };

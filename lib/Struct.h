@@ -163,7 +163,7 @@ class poly_handler
             }
         }
 
-        static int pack_2_plain(poly* op, poly* res)
+        static int clone_other(poly* op, poly* res)
         {
             if(op->ring_dim != res->ring_dim)
             {
@@ -180,22 +180,39 @@ class poly_handler
             }
         }
 
-        static int plain_2_pack(poly* op, poly* res)
-        {
-            if(op->ring_dim != res->ring_dim)
-            {
-                return -1;
-            }
-            else
-            {
-                for(int i = 0; i < res->ring_dim; i++)
-                {
-                    res->coeff[i] = op->coeff[i];
-                }
+        // static int pack_2_plain(poly* op, poly* res)
+        // {
+        //     if(op->ring_dim != res->ring_dim)
+        //     {
+        //         return -1;
+        //     }
+        //     else
+        //     {
+        //         for(int i = 0; i < res->ring_dim; i++)
+        //         {
+        //             res->coeff[i] = op->coeff[i];
+        //         }
 
-                return 0;
-            }
-        }
+        //         return 0;
+        //     }
+        // }
+
+        // static int plain_2_pack(poly* op, poly* res)
+        // {
+        //     if(op->ring_dim != res->ring_dim)
+        //     {
+        //         return -1;
+        //     }
+        //     else
+        //     {
+        //         for(int i = 0; i < res->ring_dim; i++)
+        //         {
+        //             res->coeff[i] = op->coeff[i];
+        //         }
+
+        //         return 0;
+        //     }
+        // }
 
         static int poly_neg(poly* op, poly* res)
         {
