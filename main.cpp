@@ -42,8 +42,8 @@ int main()
     prime_handler::find_ntt_root(poly_degree, plain_mod, psi_p);
 
     mpz_class cipher_mod;
-    // prime_handler::find_ntt_prime(poly_degree, cipher_bits, cipher_mod); // if you not use ECC
-    cipher_mod = "28948022309329048855892746252171976963363056481941647379679742748393362948097"; // if you want to use ECC structure.
+    prime_handler::find_ntt_prime(poly_degree, cipher_bits, cipher_mod); // if you not use ECC
+    // cipher_mod = "28948022309329048855892746252171976963363056481941647379679742748393362948097"; // if you want to use ECC structure.
     mpz_class psi_c;
     prime_handler::find_ntt_root(poly_degree, cipher_mod, psi_c);
 
