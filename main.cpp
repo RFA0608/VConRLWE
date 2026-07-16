@@ -27,14 +27,14 @@ const double s_scale = 0.001;
 int main()
 {   
     // ===================== Check Runtime ==================== //
-    auto stc = chrono::high_resolution_clock::now();
-    auto edc = chrono::high_resolution_clock::now();
+    auto stc = chrono::steady_clock::now();
+    auto edc = chrono::steady_clock::now();
     auto duration = chrono::duration_cast<chrono::nanoseconds>(edc - stc);
     double run_time = duration.count() / 1000000;
     // ======================================================== //
 
     
-    stc = chrono::high_resolution_clock::now();
+    stc = chrono::steady_clock::now();
     // ====================== Parameter ====================== //
     mpz_class plain_mod;
     prime_handler::find_ntt_prime(poly_degree, plain_bits, plain_mod);
@@ -51,7 +51,7 @@ int main()
     prime_handler::find_schnorr_prime(cipher_mod, group_bits,  group_mod);
     prime_handler::find_schnorr_gen(cipher_mod, group_mod, group_gen);
     // ======================================================== //
-    edc = chrono::high_resolution_clock::now();
+    edc = chrono::steady_clock::now();
     duration = chrono::duration_cast<chrono::nanoseconds>(edc - stc);
     run_time = duration.count() / 1000000;
     cout << "Parameter setting time: " << run_time << "ms" << endl;
@@ -62,7 +62,7 @@ int main()
 
 
 
-    stc = chrono::high_resolution_clock::now();
+    stc = chrono::steady_clock::now();
     // ================= Control (ARX) matrix ================== //
     // Original(real number field) ARX matrix representation
     vector<double> P1({-0.3844, 6.5970}); // H*(F-R*H)^3*G
@@ -88,13 +88,13 @@ int main()
     vector<vector<int64_t>> P({P1i, P2i, P3i, P4i}); 
     vector<vector<int64_t>> Q({Q1i, Q2i, Q3i, Q4i}); 
     // ========================================================= //
-    edc = chrono::high_resolution_clock::now();
+    edc = chrono::steady_clock::now();
     duration = chrono::duration_cast<chrono::nanoseconds>(edc - stc);
     run_time = duration.count() / 1000000;
     cout << "Control (ARX) matrix setting time: " << run_time << "ms" << endl;
 
 
-    stc = chrono::high_resolution_clock::now();
+    stc = chrono::steady_clock::now();
     // ============ Encrypted (ARX) controller ready =========== //
     arx* arx_ctrl = new arx();
 
@@ -161,14 +161,14 @@ int main()
     delete pre_packed_data;
     delete pre_plaintext;
     // ========================================================= //
-    edc = chrono::high_resolution_clock::now();
+    edc = chrono::steady_clock::now();
     duration = chrono::duration_cast<chrono::nanoseconds>(edc - stc);
     run_time = duration.count() / 1000000;
     cout << "controller encryption time: " << run_time << "ms" << endl;
 
 
     
-    stc = chrono::high_resolution_clock::now();
+    stc = chrono::steady_clock::now();
     // ==================== Authenticator set ===================== //
     // authentic* auth = new authentic(poly_degree, cipher_mod, group_mod, group_gen);  //group
     // auth->make_ekf(arx_ctrl->P_y, arx_ctrl->Q_u);    //group
@@ -184,7 +184,7 @@ int main()
     auth_dnf->make_ekf(arx_ctrl->P_y, arx_ctrl->Q_u); //dynamicf
     auth_dnf->set_initial(arx_ctrl->mem_y_new, arx_ctrl->mem_u_new); //dynamicf
     // ============================================================ //
-    edc = chrono::high_resolution_clock::now();
+    edc = chrono::steady_clock::now();
     duration = chrono::duration_cast<chrono::nanoseconds>(edc - stc);
     run_time = duration.count() / 1000000;
     cout << "Authenticator test time: " << run_time << "ms" << endl;
@@ -257,28 +257,33 @@ int main()
         cout << "Error: Unable to open file" << endl;
         exit(1);
     }
-    fprintf(ps, "y1,y2,u,vc,enct,vct\n");
+    fprintf(ps, "y1,y2,u,vc,enct(ms),vct(us),pfut(us)\n");
 
-    auto enc_stc = std::chrono::high_resolution_clock::now();
-    auto enc_edc = std::chrono::high_resolution_clock::now();
+    auto enc_stc = std::chrono::steady_clock::now();
+    auto enc_edc = std::chrono::steady_clock::now();
     auto enc_duration = chrono::duration_cast<chrono::nanoseconds>(enc_edc - enc_stc);
     double enc_run_time = enc_duration.count() / 1000000;
 
-    auto vc_stc = std::chrono::high_resolution_clock::now();
-    auto vc_edc = std::chrono::high_resolution_clock::now();
+    auto vc_stc = std::chrono::steady_clock::now();
+    auto vc_edc = std::chrono::steady_clock::now();
     auto vc_duration = chrono::duration_cast<chrono::nanoseconds>(vc_edc - vc_stc);
     double vc_run_time = vc_duration.count() / 1000000;
+
+    auto pfu_stc = std::chrono::steady_clock::now();
+    auto pfu_edc = std::chrono::steady_clock::now();
+    auto pfu_duration = chrono::duration_cast<chrono::nanoseconds>(vc_edc - vc_stc);
+    double pfu_run_time = pfu_duration.count() / 1000000;
 
     for(int i = 0; i < iter; i++)
     {
         // iteration time check
-        stc = std::chrono::high_resolution_clock::now();
+        stc = std::chrono::steady_clock::now();
 
         // get plant output and calculation control input
         plt->output();
-        enc_stc = std::chrono::high_resolution_clock::now();
+        enc_stc = std::chrono::steady_clock::now();
         arx_ctrl->calc();
-        enc_edc = std::chrono::high_resolution_clock::now();
+        enc_edc = std::chrono::steady_clock::now();
 
         // get control input
         crypto_handler::decrypt(arx_ctrl->calc_res, sk, plaintext);
@@ -322,28 +327,31 @@ int main()
         // auth->generate_proof(arx_ctrl->mem_y_new, arx_ctrl->mem_u_new, arx_ctrl->mem_y_pre, arx_ctrl->mem_u_pre);    //group
         // auth_ecc->generate_proof(arx_ctrl->mem_y_new, arx_ctrl->mem_u_new, arx_ctrl->mem_y_pre, arx_ctrl->mem_u_pre); //ecc
 
-        vc_stc = std::chrono::high_resolution_clock::now();
+        vc_stc = std::chrono::steady_clock::now();
         // pass = auth->verifying_proof(plt_out, ctrl_in, arx_ctrl->calc_res, previous_pf); //group
         // pass = auth_ecc->verifying_proof(plt_out, ctrl_in, arx_ctrl->calc_res, previous_pf); // ecc
         // pass = auth_orf->verifying_proof(arx_ctrl->calc_res); 
         pass = auth_dnf->verifying_proof(arx_ctrl->calc_res);
-        vc_edc = std::chrono::high_resolution_clock::now();
+        vc_edc = std::chrono::steady_clock::now();
         vc_duration = chrono::duration_cast<chrono::nanoseconds>(vc_edc - vc_stc);
-        vc_run_time = vc_duration.count() / 1000000;
+        vc_run_time = vc_duration.count() / 1000;
 
         // update vc state
+        pfu_stc = std::chrono::steady_clock::now();
         // auth_orf->state_update(plt_out,ctrl_in);
         auth_dnf->state_update(plt_out, ctrl_in);
+        pfu_edc = std::chrono::steady_clock::now();
+        pfu_run_time = pfu_duration.count() / 1000;
 
         // save data
-        fprintf(ps, "%lf,%lf,%lf,%d,%lf,%lf\n",plt->y[0], plt->y[1], real_u[0], (int)pass, enc_run_time, vc_run_time);
+        fprintf(ps, "%lf,%lf,%lf,%d,%lf,%lf,%lf\n",plt->y[0], plt->y[1], real_u[0], (int)pass, enc_run_time, vc_run_time,pfu_run_time);
 
         // debug print
-        edc = std::chrono::high_resolution_clock::now();
+        edc = std::chrono::steady_clock::now();
         duration = chrono::duration_cast<chrono::nanoseconds>(edc - stc);
         run_time = duration.count() / 1000000;
         cout << "iter [" << i+1 << "] | time: " << run_time << "ms" << " | u: " << real_u[0] << " | y: " << plt->y[0] << ", " << plt->y[1] << endl;
-        cout << "pass: " << pass << " | enc run time: " << enc_run_time << "ms | vc run time: " << vc_run_time << "ms" << endl;
+        cout << "pass: " << pass << " | enc run time: " << enc_run_time << "ms | vc run time: " << vc_run_time << "us" << endl;
     }
     // ============================================================ //
 
