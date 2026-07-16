@@ -182,7 +182,7 @@ int main()
 
     authentic_dynamicf* auth_dnf = new authentic_dynamicf(poly_degree, cipher_mod); //dynamicf
     auth_dnf->make_ekf(arx_ctrl->P_y, arx_ctrl->Q_u); //dynamicf
-    auth_dnf->set_mem(arx_ctrl->mem_y_new, arx_ctrl->mem_u_new); //dynamicf
+    auth_dnf->set_initial(arx_ctrl->mem_y_new, arx_ctrl->mem_u_new); //dynamicf
     // ============================================================ //
     edc = chrono::high_resolution_clock::now();
     duration = chrono::duration_cast<chrono::nanoseconds>(edc - stc);
