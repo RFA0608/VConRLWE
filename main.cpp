@@ -341,6 +341,7 @@ int main()
         // auth_orf->state_update(plt_out,ctrl_in);
         auth_dnf->state_update(plt_out, ctrl_in);
         pfu_edc = std::chrono::steady_clock::now();
+        pfu_duration = chrono::duration_cast<chrono::nanoseconds>(pfu_edc - pfu_stc);
         pfu_run_time = pfu_duration.count() / 1000;
 
         // save data
