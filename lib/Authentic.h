@@ -1674,13 +1674,13 @@ class authentic_dynamicf
             for(int j = 0; j < 4; j++)
             {
                 poly_handler::poly_dot(this->Pu[3-j][((this->index + 1 + j) % 4 + 4) % 4], this->u_stack, this->Pu_pf[3][((this->index + 1 + j) % 4 + 4) % 4]);
-                if(j != 4)
+                if(((this->index + 2 + j) % 4 + 4) % 4 != this->index)
                 {
                     poly_handler::poly_dot(this->r[((this->index + 2 + j) % 4 + 4) % 4], this->ubar, this->ubar_pf[3][((this->index + 1 + j) % 4 + 4) % 4]);
                 }
                 else
                 {
-                    this->ubar_pf[3][j] = this->lhs_pf;
+                    this->ubar_pf[3][((this->index + 1 + j) % 4 + 4) % 4] = this->lhs_pf;
                 }
                 
                 poly_handler::poly_dot(this->r[((this->index + 2 + j) % 4 + 4) % 4], this->delta, this->delta_pf[3][((this->index + 1 + j) % 4 + 4) % 4]);
